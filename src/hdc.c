@@ -547,10 +547,20 @@ static void HDC_Cmd_ReportLuns(SCSI_CTRLR *ctr)
 static void HDC_Cmd_ReadCapacity(SCSI_CTRLR *ctr)
 {
 	SCSI_DEV *dev = &ctr->devs[ctr->target];
-	int nSectors = dev->hdSize - 1;
+	uint32_t nSectors = dev->hdSize - 1;
 	uint8_t *buf;
 
 	LOG_TRACE(TRACE_SCSI_CMD, "HDC: READ CAPACITY (%s)\n", HDC_CmdInfoStr(ctr));
+
+	/* PMI set: the last block of the cylinder that holds the given LBA,
+	 * not the last block of the medium. SCSI-1 drivers issue this with
+	 * LBA 0 to learn the sectors per cylinder. */
+	if (ctr->command[8] & 1)
+	{
+		uint32_t end = (HDC_GetLBA(ctr) / HDC_GEOM_CYLSIZE + 1) * HDC_GEOM_CYLSIZE - 1;
+		if (end < nSectors)
+			nSectors = end;
+	}
 
 	buf = HDC_PrepRespBuf(ctr, 8);
 
