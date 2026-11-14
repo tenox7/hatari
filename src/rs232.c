@@ -58,7 +58,16 @@ struct RS232_s {
 
 	bool	ByteReceived;
 	uint8_t RxByte;
+	int	TxBusyTicks;		/* Timer D ticks until the byte leaves UDR */
 };
+
+/* A written byte leaves UDR one bit time later, not during the write.
+ * Timer D is the transmitter clock (TC): TC changes on every Timer D
+ * tick, and a bit lasts 16 TC periods (UCR /16 mode), so 32 ticks.
+ * Some drivers (e.g. Idris) write UDR and only then enable the
+ * "transmit buffer empty" interrupt: on a real MFP that works, because
+ * the interrupt comes later. */
+#define RS232_TX_BUSY_TICKS	32
 
 
 static struct RS232_s RS232_MFP;
@@ -275,6 +284,9 @@ static void RS232_CloseCOMPort(void)
 /*-----------------------------------------------------------------------*/
 void RS232_Update(void)
 {
+	if (RS232_MFP.TxBusyTicks > 0 && --RS232_MFP.TxBusyTicks == 0)
+		MFP_InputOnChannel(pMFP_Main, MFP_INT_TRN_BUF_EMPTY, 0);
+
 	if (!RS232_MFP.ByteReceived && RS232_MFP.ReadFile && File_InputAvailable(RS232_MFP.ReadFile))
 	{
 		int ch = fgetc(RS232_MFP.ReadFile);
@@ -566,7 +578,10 @@ static bool RS232_TransferBytesTo(uint8_t *pBytes, int nBytes)
 		if (fwrite(pBytes, 1, nBytes, RS232_MFP.WriteFile))
 		{
 			Dprintf(("RS232: Sent %i bytes ($%x ...)\n", nBytes, *pBytes));
-			MFP_InputOnChannel ( pMFP_Main , MFP_INT_TRN_BUF_EMPTY , 0 );
+			if ( pMFP_Main->TCDCR & 0x07 )	/* Timer D runs: buffer empty later */
+				RS232_MFP.TxBusyTicks = RS232_TX_BUSY_TICKS;
+			else
+				MFP_InputOnChannel ( pMFP_Main , MFP_INT_TRN_BUF_EMPTY , 0 );
 
 			return true;   /* OK */
 		}
@@ -663,7 +678,16 @@ void RS232_TSR_ReadByte(void)
 {
 	M68000_WaitState(4);
 
-	IoMem[0xfffa2d] |= 0x80;        /* Buffer empty */
+	if (RS232_MFP.TxBusyTicks > 0 && !(pMFP_Main->TCDCR & 0x07))
+	{
+		/* Timer D was stopped: nothing clocks the byte out any more */
+		RS232_MFP.TxBusyTicks = 0;
+		MFP_InputOnChannel(pMFP_Main, MFP_INT_TRN_BUF_EMPTY, 0);
+	}
+	if (RS232_MFP.TxBusyTicks > 0)
+		IoMem[0xfffa2d] &= ~0x80;       /* Byte still in UDR */
+	else
+		IoMem[0xfffa2d] |= 0x80;        /* Buffer empty */
 
 	Dprintf(("RS232: Read from TSR: $%x\n", (int)IoMem[0xfffa2d]));
 }
