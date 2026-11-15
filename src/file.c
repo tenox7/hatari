@@ -24,6 +24,10 @@ const char File_fileid[] = "Hatari file.c";
 #if defined(WIN32) && !defined(_VCWIN_)
 #include <winsock2.h>
 #endif
+#if defined(WIN32)
+#include <windows.h>	/* PeekNamedPipe() */
+#include <io.h>		/* _get_osfhandle() */
+#endif
 
 #include "dialog.h"
 #include "file.h"
@@ -281,6 +285,13 @@ off_t File_Length(const char *pszFileName)
 bool File_Exists(const char *filename)
 {
 	struct stat buf;
+#if defined(WIN32)
+	/* stat() may not see a named pipe (\\.\pipe\NAME, for example
+	 * --rs232-in). WaitNamedPipe() tells whether there is one, without
+	 * connecting to it. */
+	if (strncasecmp(filename, "\\\\.\\pipe\\", 9) == 0)
+		return WaitNamedPipeA(filename, 1) || GetLastError() == ERROR_SEM_TIMEOUT;
+#endif
 	if (stat(filename, &buf) == 0 &&
 	    (buf.st_mode & (S_IRUSR|S_IWUSR)) && !S_ISDIR(buf.st_mode))
 	{
@@ -447,7 +458,38 @@ void File_UnLock(FILE *fp)
  */
 bool File_InputAvailable(FILE *fp)
 {
-#if HAVE_SELECT
+#if defined(WIN32)
+	/* Windows has select() only for sockets. For a pipe (for example
+	 * a named pipe given as the RS-232 input), ask what is waiting.
+	 * RS232_Update() asks at every timer D tick, many thousand times a
+	 * second, so a file that had nothing is asked again only after 1 ms. */
+	static HANDLE idle_h;
+	static LARGE_INTEGER idle_since, freq;
+	LARGE_INTEGER now;
+	HANDLE h;
+	DWORD avail = 0;
+	int fh;
+
+	if (!fp || (fh = fileno(fp)) == -1)
+		return false;
+	h = (HANDLE)_get_osfhandle(fh);
+	if (h == INVALID_HANDLE_VALUE)
+		return false;
+	if (!freq.QuadPart)
+		QueryPerformanceFrequency(&freq);
+	QueryPerformanceCounter(&now);
+	if (h == idle_h && now.QuadPart - idle_since.QuadPart < freq.QuadPart / 1000)
+		return false;
+	if (GetFileType(h) == FILE_TYPE_PIPE &&
+	    PeekNamedPipe(h, NULL, 0, NULL, &avail, NULL) && avail > 0)
+	{
+		idle_h = NULL;
+		return true;
+	}
+	idle_h = h;
+	idle_since = now;
+	return false;
+#elif HAVE_SELECT
 	fd_set rfds;
 	struct timeval tv;
 	int fh;
