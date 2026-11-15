@@ -185,8 +185,6 @@ static bool RS232_OpenCOMPort(void)
 {
 	bool ok = true;
 
-	RS232_MFP.ByteReceived = false;
-
 	if (!RS232_MFP.WriteFile && ConfigureParams.RS232.szOutFileName[0])
 	{
 		/* Create our serial file for output */
@@ -221,6 +219,9 @@ static bool RS232_OpenCOMPort(void)
 
 	if (!RS232_MFP.ReadFile && ConfigureParams.RS232.szInFileName[0])
 	{
+		/* No received byte is pending on a newly opened input */
+		RS232_MFP.ByteReceived = false;
+
 		/* Create our serial file for output */
 		RS232_MFP.ReadFile = File_Open(ConfigureParams.RS232.szInFileName, "rb");
 		if ( RS232_MFP.ReadFile )
