@@ -355,7 +355,9 @@ void FileName_Shrink(char *pDestFileName, const char *pSrcFileName, int maxlen)
 
 /**
  * Wrapper for FileName_MakeAbsolute() which special-cases stdin/out/err
- * named files and empty file name.  The given buffer should be opened
+ * named files, Windows device names (like a named pipe \\.\pipe\NAME,
+ * whose "./" FileName_MakeAbsolute() would remove) and empty file name.
+ * The given buffer should be opened
  * with File_Open() and closed with File_Close() if this function is used!
  * (On Linux one can use /dev/stdout etc, this is intended for other OSes)
  */
@@ -364,7 +366,11 @@ void FileName_MakeAbsoluteSpecial(char *path)
 	if (path[0] &&
 	    strcmp(path, "stdin")  != 0 &&
 	    strcmp(path, "stdout") != 0 &&
-	    strcmp(path, "stderr") != 0)
+	    strcmp(path, "stderr") != 0
+#if defined(WIN32)
+	    && strncmp(path, "\\\\.\\", 4) != 0
+#endif
+	    )
 		FileName_MakeAbsolute(path);
 }
 
