@@ -19,5 +19,7 @@ extern SDL_Window *sdlWindow;
 
 void Screen_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects);
 void Screen_UpdateRect(SDL_Surface *screen, Sint32 x, Sint32 y, Sint32 w, Sint32 h);
+bool Screen_IsMouseGrabbed(void);
+void Screen_GetMouseGrabKey(char *buf, size_t size);
 
 #endif  /* ifndef HATARI_SCREEN_H */

@@ -27,6 +27,7 @@ const char Screen_fileid[] = "Hatari screen.c";
 #include "conv_st.h"
 #include "avi_record.h"
 #include "file.h"
+#include "keymap.h"
 #include "filename.h"
 #include "log.h"
 #include "paths.h"
@@ -58,6 +59,10 @@ bool bGrabMouse = false;      /* Grab the mouse cursor in the window */
 bool bInFullScreen = false;   /* true if in full screen */
 
 static SDL_Rect STScreenRect;       /* screen size without statusbar */
+
+static bool bMouseGrabbed;          /* what Screen_SetMouseGrab() set last */
+static char sTitleBase[64];         /* window title without the grab part */
+static void Screen_ShowTitle(void);
 
 SDL_Window *sdlWindow;
 static SDL_Renderer *sdlRenderer;
@@ -519,6 +524,7 @@ bool Screen_SetVideoSize(int width, int height, bool bForceChange)
 			fprintf(stderr, "%dx%d window\n", win_width, win_height);
 			Main_ErrorExit("Failed to create window:", SDL_GetError(), -1);
 		}
+		Screen_ShowTitle();
 	}
 	if (bUseSdlRenderer)
 	{
@@ -624,15 +630,81 @@ void Screen_ModeChanged(bool bForceChange)
 }
 
 
+#ifdef __APPLE__
+#define SHORTCUT_MOD_NAME "Cmd+"
+#else
+#define SHORTCUT_MOD_NAME "AltGr+"
+#endif
+
+/**
+ * Put the name of the key that grabs and releases the mouse
+ * (such as "F10" or "Cmd+M") in 'buf', or "" if there is none
+ */
+void Screen_GetMouseGrabKey(char *buf, size_t size)
+{
+	int k;
+
+	buf[0] = '\0';
+	k = ConfigureParams.Shortcut.withoutModifier[SHORTCUT_MOUSEGRAB];
+	if (k)
+		snprintf(buf, size, "%s", Keymap_GetKeyName(k));
+	else if ((k = ConfigureParams.Shortcut.withModifier[SHORTCUT_MOUSEGRAB]))
+		snprintf(buf, size, SHORTCUT_MOD_NAME "%s", Keymap_GetKeyName(k));
+}
+
+/**
+ * Show the window title, with whether the mouse is grabbed and
+ * the key that grabs or releases it
+ */
+static void Screen_ShowTitle(void)
+{
+	const char *base = sTitleBase[0] ? sTitleBase : PROG_NAME;
+	char buf[sizeof(sTitleBase) + 64], key[40];
+
+	Screen_GetMouseGrabKey(key, sizeof(key));
+
+	if (bMouseGrabbed && key[0])
+		snprintf(buf, sizeof(buf), "%s - mouse grabbed, %s releases it", base, key);
+	else if (bMouseGrabbed)
+		snprintf(buf, sizeof(buf), "%s - mouse grabbed", base);
+	else if (key[0])
+		snprintf(buf, sizeof(buf), "%s - %s grabs the mouse", base, key);
+	else
+		snprintf(buf, sizeof(buf), "%s", base);
+
+	if (sdlWindow)
+		SDL_SetWindowTitle(sdlWindow, buf);
+}
+
 /**
  * Set Hatari window title. Use NULL for default
  */
 void Screen_SetTitle(const char *title)
 {
-	if (title)
-		SDL_SetWindowTitle(sdlWindow, title);
-	else
-		SDL_SetWindowTitle(sdlWindow, PROG_NAME);
+	snprintf(sTitleBase, sizeof(sTitleBase), "%s", title ? title : PROG_NAME);
+	Screen_ShowTitle();
+}
+
+/**
+ * Grab the mouse (relative mouse mode) or let it go. The window title
+ * and the statusbar's GRAB led show which.
+ */
+static void Screen_SetMouseGrab(bool grab)
+{
+	SDL_SetWindowRelativeMouseMode(sdlWindow, grab);
+	if (grab != bMouseGrabbed)
+	{
+		bMouseGrabbed = grab;
+		Screen_ShowTitle();
+	}
+}
+
+/**
+ * Return true while the mouse is grabbed
+ */
+bool Screen_IsMouseGrabbed(void)
+{
+	return bMouseGrabbed;
 }
 
 
@@ -794,7 +866,7 @@ void Screen_EnterFullScreen(void)
 			ConvST_Refresh(true);
 		}
 		/* Grab mouse pointer in fullscreen */
-		SDL_SetWindowRelativeMouseMode(sdlWindow, true);
+		Screen_SetMouseGrab(true);
 	}
 }
 
@@ -842,7 +914,7 @@ void Screen_ReturnFromFullScreen(void)
 		if (!bGrabMouse)
 		{
 			/* Un-grab mouse pointer in windowed mode */
-			SDL_SetWindowRelativeMouseMode(sdlWindow, false);
+			Screen_SetMouseGrab(false);
 		}
 	}
 }
@@ -852,7 +924,7 @@ bool Screen_UngrabMouse(void)
 {
 	bool old_grab = bGrabMouse;
 
-	SDL_SetWindowRelativeMouseMode(sdlWindow, false);
+	Screen_SetMouseGrab(false);
 	bGrabMouse = false;
 
 	return old_grab;
@@ -861,7 +933,7 @@ bool Screen_UngrabMouse(void)
 
 void Screen_GrabMouseIfNecessary(void)
 {
-	SDL_SetWindowRelativeMouseMode(sdlWindow, bInFullScreen || bGrabMouse);
+	Screen_SetMouseGrab(bInFullScreen || bGrabMouse);
 }
 
 
