@@ -553,6 +553,31 @@ void Statusbar_AddMessage(const char *msg, Uint32 msecs)
 	item->shown = false;
 }
 
+static char InfoMessage[MAX_MESSAGE_LEN+1];	/* machine information */
+static bool bOldGrab;				/* mouse grabbed at last update */
+
+/*-----------------------------------------------------------------------*/
+/**
+ * Set the default message: while the mouse is grabbed, the key that
+ * releases it, else the machine information
+ */
+static void Statusbar_SetDefaultMessage(void)
+{
+	char key[40];
+
+	Screen_GetMouseGrabKey(key, sizeof(key));
+	if (bOldGrab && key[0])
+		snprintf(DefaultMessage.msg, sizeof(DefaultMessage.msg),
+		         "Mouse grabbed - %s releases it", key);
+	else if (bOldGrab)
+		Str_Copy(DefaultMessage.msg, "Mouse grabbed", sizeof(DefaultMessage.msg));
+	else
+		Str_Copy(DefaultMessage.msg, InfoMessage, sizeof(DefaultMessage.msg));
+	DEBUGPRINT(("Set default message: '%s'\n", DefaultMessage.msg));
+	/* make sure default message gets (re-)drawn when next checked */
+	DefaultMessage.shown = false;
+}
+
 /*-----------------------------------------------------------------------*/
 /**
  * Retrieve/update default statusbar information
@@ -564,10 +589,8 @@ void Statusbar_UpdateInfo(void)
 
 	Configuration_SetInfoString(buffer, size);
 
-	Str_Copy(DefaultMessage.msg, buffer, MAX_MESSAGE_LEN);
-	DEBUGPRINT(("Set default message: '%s'\n", DefaultMessage.msg));
-	/* make sure default message gets (re-)drawn when next checked */
-	DefaultMessage.shown = false;
+	Str_Copy(InfoMessage, buffer, MAX_MESSAGE_LEN);
+	Statusbar_SetDefaultMessage();
 }
 
 /*-----------------------------------------------------------------------*/
@@ -804,6 +827,13 @@ SDL_Rect* Statusbar_Update(SDL_Surface *surf, bool do_update)
 	}
 #endif
 	assert(surf->h == ScreenHeight + StatusbarHeight);
+
+	/* mouse grabbed or released: change the default message */
+	if (Screen_IsMouseGrabbed() != bOldGrab)
+	{
+		bOldGrab = !bOldGrab;
+		Statusbar_SetDefaultMessage();
+	}
 
 	currentticks = SDL_GetTicks();
 	last_rect = Statusbar_ShowMessage(surf, currentticks);
