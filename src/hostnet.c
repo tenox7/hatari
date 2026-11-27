@@ -49,7 +49,7 @@ const char HostNet_fileid[] = "Hatari hostnet.c";
 #endif
 
 #ifdef HAVE_SLIRP
-#include <slirp/libslirp.h>
+#include <libslirp.h>	/* pkg-config's include dir is .../include/slirp */
 /* 4.9 polls sockets as SOCKETs, which on 64-bit Windows don't fit an int */
 #if SLIRP_CHECK_VERSION(4, 9, 0)
 #define HN_SLIRP_SOCKETS 1
