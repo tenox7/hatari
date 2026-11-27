@@ -675,8 +675,22 @@ private:
 
     void pumpForwards(uint64_t t)
     {
-        // No SYN is emitted until a guest frame has supplied its MAC.
-        if (guestMac_ == kBroadcastMac) return;
+        // No SYN is emitted until a guest frame has supplied its MAC. A
+        // guest that only listens (a server under STinG) sends no frame
+        // of its own, so ask for it once a second, as slirp does: the
+        // guest's ARP reply is the frame that supplies the MAC.
+        if (guestMac_ == kBroadcastMac) {
+            if (!forwards_.empty() && t - lastArpProbeMs_ >= 1000) {
+                lastArpProbeMs_ = t;
+                ArpPacket who;
+                who.operation = kArpRequest;
+                who.senderMac = kGatewayMac;
+                who.senderIp  = kGatewayIp;
+                who.targetIp  = guestIp_;
+                queue(buildEthernet(kBroadcastMac, kGatewayMac, kEtherTypeArp, buildArp(who)));
+            }
+            return;
+        }
         for (auto& f : forwards_) {
             for (int n = 0; n < 16; ++n) {
                 Endpoint peer;
@@ -777,6 +791,7 @@ private:
     Bytes forwardBuffer_;
     std::deque<Bytes>              outbound_;
     Mac                            guestMac_ = kBroadcastMac;
+    uint64_t                       lastArpProbeMs_ = 0;
     uint32_t                       guestIp_  = kGuestIp;
     uint16_t                       nextIpId_ = 0;
     bool                           refusalWarned_ = false;
