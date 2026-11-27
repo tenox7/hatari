@@ -1,0 +1,221 @@
+[
+{"name":"vm-info",
+ "description":"Describe the VM: name, folder, run state, guest time, PC, the machine (ST, STE, TT or Falcon, CPU, RAM, TOS, disks), the floppies, the screen size, where the mouse pointer is and how the mouse tools move it, and the serial port. Use it first.",
+ "inputSchema":{"type":"object","properties":{}},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"vm-power",
+ "description":"Pause or resume the CPU, reset the machine (warm, or cold with cold=true; the disks stay), or quit Hatari (it asks nothing). A paused VM keeps answering: screenshots, memory and registers work. Resume also goes on after debug-run or debug-step stopped the CPU. Never pause, reset or quit a VM you did not start unless the user asked.",
+ "inputSchema":{"type":"object","properties":{
+   "action":{"type":"string","enum":["pause","resume","reset","quit"],"description":"what to do"},
+   "cold":{"type":"boolean","description":"with reset: a cold reset, as at power on (default: false, a warm reset)"}},
+  "required":["action"]},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"screenshot",
+ "description":"Capture the Atari's screen as a PNG, one pixel a guest pixel, without Hatari's borders and statusbar: ST low resolution is 320x200, medium 640x200 (its pixels are twice as tall as wide), high 640x400; TT and Falcon modes as the guest set them (vm-info says the size). Coordinates in all tools are these screen pixels, origin top-left; with scale, divide image coordinates by scale.",
+ "inputSchema":{"type":"object","properties":{
+   "region":"@RECT@",
+   "scale":{"type":"number","description":"from 0.25 to 4 (default: 1; 2 makes small text easier to read, 0.5 makes a big screen smaller)"},
+   "pointer":{"type":"boolean","description":"draw a red cross where the guest's mouse driver says the pointer is (default: false)"}}},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"wait-screen",
+ "description":"Wait until the screen changes, or becomes stable, or both. Use it instead of sleeping. change-then-stable waits for something to happen, then for it to settle. Changes smaller than min-pixels do not count, nor do changes back to a picture of the last few seconds (a blinking cursor). stable-ms is guest time (VBLs: 50, 60 or 71 a second); timeout-ms is wall time. One call can wait up to 25 minutes; for a longer install, call it again.",
+ "inputSchema":{"type":"object","properties":{
+   "until":{"type":"string","enum":["change","stable","change-then-stable"],"description":"what to wait for"},
+   "stable-ms":{"type":"integer","description":"how long the screen must not change to be stable (default: 2000)"},
+   "timeout-ms":{"type":"integer","description":"give up after this long, at most 1500000, 25 minutes (default: 60000)"},
+   "min-pixels":{"type":"integer","description":"a change must touch at least this many pixels (default: 16)"},
+   "region":"@RECT@",
+   "ignore":{"type":"array","items":"@RECT@","description":"changes inside these rectangles do not count, such as a clock"},
+   "screenshot":"@SHOT_TRUE@"},
+  "required":["until"]},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"key",
+ "description":"Press keys and key combinations on the Atari keyboard (IKBD scancodes), one after another. Join a combination with - or + (\"ctrl-c\", \"alt-x\", \"shift-f1\"); \"down*5\" presses Down five times; a single character is that key in the US layout (\"A\" is shift-a). Names: esc, backspace, tab, return, space, ctrl, shift, rshift, alt, capslock, f1-f10, up, down, left, right, home (clr/home), insert, delete, undo, help, iso, kp-0 to kp-9, kp-(, kp-), kp-/, kp-*, kp--, kp-+, kp-., kp-enter, minus, equal, grave, backslash, semicolon, apostrophe, comma, dot, slash, bracketleft, bracketright.",
+ "inputSchema":{"type":"object","properties":{
+   "keys":{"type":"array","items":{"type":"string"},"description":"keys or combinations to press, in order"},
+   "hold-ms":{"type":"integer","description":"how long each key stays down (default: 40)"},
+   "delay-ms":{"type":"integer","description":"pause after each key (default: 40)"},
+   "then":"@THEN@"},
+  "required":["keys"]},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"type-text",
+ "description":"Type a string on the Atari keyboard in the US layout (the guest's keyboard table must be the US one for the shifted characters to come out right). \"\\n\" presses Return, \"\\t\" Tab; a control character is ctrl and a letter. Every character is checked first; if one cannot be typed, nothing is typed.",
+ "inputSchema":{"type":"object","properties":{
+   "text":{"type":"string","description":"the text to type"},
+   "layout":{"type":"string","description":"the keyboard layout; only us is known (default: us)"},
+   "char-delay-ms":{"type":"integer","description":"pause after each character (default: 20)"},
+   "then":"@THEN@"},
+  "required":["text"]},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"mouse-move",
+ "description":"Move the mouse pointer to x, y, or by dx, dy. The tools send IKBD mouse packets: they read where the pointer is from the guest's Line-A variables (TOS, EmuTOS and GEM keep it there) and correct until it is there, or, when nothing says where it is (a game, or before the desktop), push it into the top-left corner first and then count.",
+ "inputSchema":{"type":"object","properties":{
+   "x":{"type":"integer","description":"target x in screen pixels"},
+   "y":{"type":"integer","description":"target y in screen pixels"},
+   "dx":{"type":"integer","description":"move right by this many pixels (negative: left)"},
+   "dy":{"type":"integer","description":"move down by this many pixels (negative: up)"},
+   "step-px":{"type":"integer","description":"largest step in mouse counts for IKBD packets (default: 16)"},
+   "then":"@THEN@"}},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"mouse-click",
+ "description":"Click a mouse button, after moving to x, y if given (see mouse-move). GEM menus drop down when the pointer is over the title; click the item.",
+ "inputSchema":{"type":"object","properties":{
+   "x":{"type":"integer","description":"target x in screen pixels"},
+   "y":{"type":"integer","description":"target y in screen pixels"},
+   "button":{"type":"string","enum":["left","right"],"description":"which button (default: left)"},
+   "count":{"type":"integer","description":"1 to 3; 2 is a double-click (default: 1)"},
+   "hold-ms":{"type":"integer","description":"time the button stays down (default: 80)"},
+   "interval-ms":{"type":"integer","description":"time between clicks (default: 120)"},
+   "then":"@THEN@"}},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"mouse-button",
+ "description":"Press or release a mouse button without moving, for press-and-hold: mouse-button down, mouse-move, mouse-button up.",
+ "inputSchema":{"type":"object","properties":{
+   "action":{"type":"string","enum":["down","up"],"description":"press or release"},
+   "button":{"type":"string","enum":["left","right"],"description":"which button (default: left)"},
+   "then":"@THEN@"},
+  "required":["action"]},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"mouse-drag",
+ "description":"Drag with a button held: move to x, y, press, move to to-x, to-y, release.",
+ "inputSchema":{"type":"object","properties":{
+   "x":{"type":"integer","description":"start x"},
+   "y":{"type":"integer","description":"start y"},
+   "to-x":{"type":"integer","description":"end x"},
+   "to-y":{"type":"integer","description":"end y"},
+   "button":{"type":"string","enum":["left","right"],"description":"which button (default: left)"},
+   "then":"@THEN@"},
+  "required":["x","y","to-x","to-y"]},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"mouse-wheel",
+ "description":"Turn the mouse wheel, after moving to x, y if given. As the cursor keys up and down, as Hatari does for the host's wheel.",
+ "inputSchema":{"type":"object","properties":{
+   "direction":{"type":"string","enum":["up","down"],"description":"which way"},
+   "count":{"type":"integer","description":"notches, 1 to 50 (default: 1)"},
+   "x":{"type":"integer","description":"target x in screen pixels"},
+   "y":{"type":"integer","description":"target y in screen pixels"},
+   "then":"@THEN@"},
+  "required":["direction"]},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"pointer-locate",
+ "description":"Say where the mouse pointer is, with a screenshot that marks it with a red cross. When no guest driver says where it is, it finds the pointer by moving it a little sideways and back. Use it when clicks miss.",
+ "inputSchema":{"type":"object","properties":{}},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"serial-write",
+ "description":"Send text to the serial port, as if typed on a terminal there. The tools reach Modem 1 (the MFP's USART: BIOS device 6 and AUX on the ST, STE, Mega STE and TT, u:/dev/modem1 under MiNT) and Modem 2 (SCC channel B on the Mega STE, TT and Falcon: BIOS device 7, u:/dev/modem2, the Falcon's serial port and its AUX); the input goes to the one the guest last wrote to. \"\\n\" is sent as Return (CR) unless raw is true. Control characters go as they are (\"\\u0003\" is ctrl-c, \"\\u0004\" ctrl-d).",
+ "inputSchema":{"type":"object","properties":{
+   "text":{"type":"string","description":"what to send"},
+   "raw":{"type":"boolean","description":"send \\n as LF, not CR (default: false)"}},
+  "required":["text"]},
+ "annotations":{"openWorldHint":false}},
+
+{"name":"serial-read",
+ "description":"Read what the guest wrote to the serial port since the last serial-read, serial-expect or serial-run, or with all, the latest output whether read or not.",
+ "inputSchema":{"type":"object","properties":{
+   "all":{"type":"boolean","description":"return the latest max-bytes of output, read or not (default: false)"},
+   "max-bytes":{"type":"integer","description":"at most this much, the newest (default: 16384, at most 262144)"}}},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"serial-expect",
+ "description":"Wait until the guest writes some text to the serial port. It looks at the output after the last serial read, so call it after the write that should cause the text. Returns the output up to the match; the next read starts after it.",
+ "inputSchema":{"type":"object","properties":{
+   "text":{"type":"string","description":"the text to wait for"},
+   "regex":{"type":"boolean","description":"text is a POSIX extended regular expression (default: false)"},
+   "timeout-ms":{"type":"integer","description":"give up after this long, at most 1500000 (default: 30000)"}},
+  "required":["text"]},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"serial-run",
+ "description":"Run a shell command on the serial port, where a POSIX shell must be reading (under FreeMiNT, for example: sh -i <u:/dev/modem1 >u:/dev/modem1 2>&1 &, or modem2 on the Falcon), and return its output and exit status. If it is still running at the timeout, the call returns the output so far; serial-expect or serial-read get the rest.",
+ "inputSchema":{"type":"object","properties":{
+   "command":{"type":"string","description":"the command line, or several lines of shell"},
+   "timeout-ms":{"type":"integer","description":"give up after this long, at most 1500000 (default: 60000)"}},
+  "required":["command"]},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"media",
+ "description":"Floppy drives A and B. status says what is in them. insert puts a floppy image file (.st, .msa, .dim, .stx, .ipf, or one in a .zip) in a drive, the one there comes out first (and is saved if the guest wrote to it); eject takes it out. Paths are relative to the VM's folder.",
+ "inputSchema":{"type":"object","properties":{
+   "action":{"type":"string","enum":["status","insert","eject"],"description":"what to do (default: status)"},
+   "drive":{"type":"string","enum":["a","b"],"description":"the drive (default: a)"},
+   "file":{"type":"string","description":"with insert: the image file"}}},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"steps",
+ "description":"Run several tool calls in one, in order: keys, typing, mouse, waits, serial, media. Use it for a sequence you know, such as a login or the next pages of an installer. It stops at the first step that fails or whose wait does not get what it waits for (wait-screen or a 'then' wait that times out, serial-expect with no match, serial-run still running, debug-run that does not get to its address), and says which. All steps are checked before the first one runs. They share one call's 25 minutes. The result has each step's summary and the last screenshot taken.",
+ "inputSchema":{"type":"object","properties":{
+   "steps":{"type":"array","minItems":1,"maxItems":50,"description":"the calls, in order",
+    "items":{"type":"object","properties":{
+      "tool":{"type":"string","description":"a tool, such as key, type-text, mouse-click, wait-screen, serial-write or serial-expect"},
+      "args":{"type":"object","description":"its arguments, as in a call of its own"}},
+     "required":["tool"]}}},
+  "required":["steps"]},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"debug-registers",
+ "description":"Show the 68k's registers (D0-D7, A0-A7, PC, SR with its flags, USP, SSP, and VBR, SFC, DFC, MSP, CACR where the CPU has them) and the next instructions. While the CPU runs, it is a snapshot at a VBL.",
+ "inputSchema":{"type":"object","properties":{
+   "instructions":{"type":"integer","description":"how many instructions to show from PC (default: 4, at most 32)"}}},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"register-write",
+ "description":"Set a 68k register: d0-d7, a0-a7 (sp is a7), pc, sr, usp, ssp; vbr, sfc, dfc from the 68010; msp, cacr from the 68020. The CPU must be stopped (vm-power pause, or debug-run).",
+ "inputSchema":{"type":"object","properties":{
+   "register":{"type":"string","description":"the register's name"},
+   "value":{"type":"string","description":"the new value: hex with 0x, or decimal"}},
+  "required":["register","value"]},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"memory-read",
+ "description":"Read guest memory, physical addresses, as a hex dump with ASCII, or as a C string. ST-RAM is from 0, TOS (ROM) at 0xe00000 (TOS 2 to 4, EmuTOS) or 0xfc0000 (TOS 1), a cartridge at 0xfa0000, TT-RAM from 0x1000000. The I/O space (0xff8000-0xffffff) is not read.",
+ "inputSchema":{"type":"object","properties":{
+   "address":{"type":"string","description":"the first address: hex with 0x, or decimal"},
+   "length":{"type":"integer","description":"bytes, up to 4096 (default: 128)"},
+   "string":{"type":"boolean","description":"show a C string there, up to its zero byte or length (default: false)"}},
+  "required":["address"]},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"memory-write",
+ "description":"Write guest RAM (ST-RAM or TT-RAM, physical addresses): bytes given as hex, or a text string. Nothing is written unless all of it is RAM.",
+ "inputSchema":{"type":"object","properties":{
+   "address":{"type":"string","description":"the first address: hex with 0x, or decimal"},
+   "hex":{"type":"string","description":"the bytes, as hex digits (\"4e71 4e75\"; spaces are ignored)"},
+   "text":{"type":"string","description":"or a string to write (no zero byte is added)"}},
+  "required":["address"]},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"disassemble",
+ "description":"Disassemble 68k code at an address (Hatari's UAE disassembler).",
+ "inputSchema":{"type":"object","properties":{
+   "address":{"type":"string","description":"where to start: hex with 0x, or decimal (default: PC)"},
+   "count":{"type":"integer","description":"how many instructions, up to 200 (default: 16)"}}},
+ "annotations":{"readOnlyHint":true,"openWorldHint":false}},
+
+{"name":"debug-run",
+ "description":"Let the CPU run until it is about to run the instruction at an address (a breakpoint), then stop it there and show the registers. With a timeout, the breakpoints go away and the CPU keeps running. After a stop, debug-step goes on one instruction at a time, debug-run to the next address, and vm-power resume lets it run. It works beside Hatari's own debugger.",
+ "inputSchema":{"type":"object","properties":{
+   "address":{"description":"an address, or a list of up to 16, as hex with 0x or decimal","anyOf":[{"type":"string"},{"type":"array","items":{"type":"string"}}]},
+   "count":{"type":"integer","description":"stop the count-th time it gets there (default: 1)"},
+   "supervisor":{"type":"boolean","description":"only in supervisor mode (true) or only in user mode (false) (default: either)"},
+   "timeout-ms":{"type":"integer","description":"give up after this long, at most 1500000 (default: 30000)"}},
+  "required":["address"]},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}},
+
+{"name":"debug-step",
+ "description":"Run some instructions and stop. The CPU must be stopped: by debug-run, or vm-power pause. Interrupts are taken as usual.",
+ "inputSchema":{"type":"object","properties":{
+   "count":{"type":"integer","description":"how many instructions, up to 100000 (default: 1)"}}},
+ "annotations":{"destructiveHint":true,"openWorldHint":false}}
+]

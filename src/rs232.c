@@ -22,6 +22,9 @@ const char RS232_fileid[] = "Hatari rs232.c";
 #include "m68000.h"
 #include "mfp.h"
 #include "rs232.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 
 /* AmigaOS has termios.h, but no tcsetattr() and friends - d'oh! */
 #if !defined(HAVE_TCSETATTR)
@@ -288,6 +291,15 @@ void RS232_Update(void)
 	if (RS232_MFP.TxBusyTicks > 0 && --RS232_MFP.TxBusyTicks == 0)
 		MFP_InputOnChannel(pMFP_Main, MFP_INT_TRN_BUF_EMPTY, 0);
 
+#if ENABLE_MCP
+	/* The MCP serial tools' input comes before the input file's */
+	if (!RS232_MFP.ByteReceived && hatari_mcp_serial_pending(HATARI_MCP_SERIAL_MFP) > 0)
+	{
+		RS232_MFP.RxByte = hatari_mcp_serial_rx();
+		RS232_MFP.ByteReceived = true;
+		MFP_InputOnChannel(pMFP_Main, MFP_INT_RCV_BUF_FULL, 0);
+	}
+#endif
 	if (!RS232_MFP.ByteReceived && RS232_MFP.ReadFile && File_InputAvailable(RS232_MFP.ReadFile))
 	{
 		int ch = fgetc(RS232_MFP.ReadFile);
@@ -568,9 +580,22 @@ void	RS232_Get_DCD_CTS ( uint8_t *pDCD , uint8_t *pCTS )
  */
 static bool RS232_TransferBytesTo(uint8_t *pBytes, int nBytes)
 {
+	bool sent = false;
+
 	/* Make sure there's a RS-232 connection if it's enabled */
 	if (ConfigureParams.RS232.bEnableRS232)
 		RS232_OpenCOMPort();
+
+#if ENABLE_MCP
+	/* The MCP serial tools see what the guest sends, file or not */
+	if (hatari_mcp_on())
+	{
+		int i;
+		for (i = 0; i < nBytes; i++)
+			hatari_mcp_serial_tx(HATARI_MCP_SERIAL_MFP, pBytes[i]);
+		sent = true;
+	}
+#endif
 
 	/* Have we connected to the RS232 ? */
 	if ( RS232_MFP.WriteFile )
@@ -579,16 +604,19 @@ static bool RS232_TransferBytesTo(uint8_t *pBytes, int nBytes)
 		if (fwrite(pBytes, 1, nBytes, RS232_MFP.WriteFile))
 		{
 			Dprintf(("RS232: Sent %i bytes ($%x ...)\n", nBytes, *pBytes));
-			if ( pMFP_Main->TCDCR & 0x07 )	/* Timer D runs: buffer empty later */
-				RS232_MFP.TxBusyTicks = RS232_TX_BUSY_TICKS;
-			else
-				MFP_InputOnChannel ( pMFP_Main , MFP_INT_TRN_BUF_EMPTY , 0 );
-
-			return true;   /* OK */
+			sent = true;
 		}
 	}
 
-	return false;  /* Failed */
+	if (sent)
+	{
+		if ( pMFP_Main->TCDCR & 0x07 )	/* Timer D runs: buffer empty later */
+			RS232_MFP.TxBusyTicks = RS232_TX_BUSY_TICKS;
+		else
+			MFP_InputOnChannel ( pMFP_Main , MFP_INT_TRN_BUF_EMPTY , 0 );
+	}
+
+	return sent;
 }
 
 

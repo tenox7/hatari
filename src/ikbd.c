@@ -1354,10 +1354,10 @@ static void IKBD_DuplicateMouseFireButtons(void)
 	if (KeyboardProcessor.MouseMode == AUTOMODE_OFF)
 	{
 		/* If pressed right mouse button, should go to joystick 1 */
-		if (Keyboard.bRButtonDown&BUTTON_MOUSE)
+		if (Keyboard.bRButtonDown & (BUTTON_MOUSE|BUTTON_MCP))
 			KeyboardProcessor.Joy.JoyData[JOYID_JOYSTICK1] |= ATARIJOY_BITMASK_FIRE;
 		/* And left mouse button, should go to joystick 0 */
-		if (Keyboard.bLButtonDown&BUTTON_MOUSE)
+		if (Keyboard.bLButtonDown & (BUTTON_MOUSE|BUTTON_MCP))
 			KeyboardProcessor.Joy.JoyData[JOYID_JOYSTICK0] |= ATARIJOY_BITMASK_FIRE;
 	}
 	/* If mouse is on, joystick 1 fire button goes to the mouse instead */

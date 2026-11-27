@@ -244,6 +244,16 @@ check_include_files(utime.h HAVE_UTIME_H)
 check_include_files(sys/utime.h HAVE_SYS_UTIME_H)
 check_include_files("sys/socket.h;sys/un.h" HAVE_UNIX_DOMAIN_SOCKETS)
 
+# The built-in MCP server for AI agents (src/mcp, "hatari --mcp-bridge"):
+# it needs Unix domain sockets, threads and zlib
+find_package(Threads)
+if(ENABLE_HATARI AND HAVE_UNIX_DOMAIN_SOCKETS AND ZLIB_FOUND
+   AND CMAKE_USE_PTHREADS_INIT AND NOT WIN32 AND NOT EMSCRIPTEN)
+	set(MCP_POSSIBLE ON)
+endif()
+cmake_dependent_option(ENABLE_MCP "Built-in MCP server for AI agents (hatari --mcp-bridge)"
+                       ON MCP_POSSIBLE OFF)
+
 # #############################
 # Check for optional functions:
 # #############################
@@ -527,6 +537,12 @@ else()
     message( "          \tNatFeats SCSI devices on udev-based systems (Linux)" )
   endif()
 endif(Udev_FOUND)
+
+if(ENABLE_MCP)
+  message( "  - mcp :\tbuilt-in MCP server for AI agents (see doc/mcp.txt)" )
+else()
+  message( "  - mcp :\tno MCP server (needs Unix domain sockets, pthreads and zlib)" )
+endif(ENABLE_MCP)
 
 if(Capstone_FOUND)
   message( "  - capstone :\tfound, allows nice disassembly with --disasm ext" )

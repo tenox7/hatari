@@ -60,6 +60,9 @@ const char Main_fileid[] = "Hatari main.c";
 #include "clocks_timings.h"
 
 #include "hatari-glue.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 
 #include "falcon/dsp.h"
 #include "falcon/videl.h"
@@ -338,11 +341,19 @@ void Main_Init(int argc, char *argv[])
 	
 	/* Check if Timing_Delay is accurate */
 	Timing_CheckForAccurateDelays();
+
+#if ENABLE_MCP
+	/* The MCP server for AI agents (HATARI_MCP=0 turns it off) */
+	hatari_mcp_init();
+#endif
 }
 
 
 void Main_UnInit(void)
 {
+#if ENABLE_MCP
+	hatari_mcp_done();
+#endif
 	Control_RemoveFifo();
 
 	/* cleanly close the AVI file, if needed */

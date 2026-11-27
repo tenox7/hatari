@@ -37,6 +37,7 @@ static struct screen_zoom_s screen_zoom;
 static bool bTTSampleHold = false;		/* TT special video mode */
 static int nSampleHoldIdx;
 static uint32_t nScreenBaseAddr;		/* address of screen in STRam */
+static int nScreenHScroll;			/* its fine scroll, in pixels */
 int ConvertW = 0;
 int ConvertH = 0;
 int ConvertBPP = 1;
@@ -823,6 +824,7 @@ void ConvGen_Convert(uint32_t vaddr, void *fvram, int vw, int vh,
 {
 	nScreenBaseAddr = vaddr;
 	ConvGen_Palette = palette.native;
+	nScreenHScroll = hscroll;
 	ConvertW = vw;
 	ConvertH = vh;
 	ConvertBPP = vbpp;
@@ -843,6 +845,16 @@ void ConvGen_Convert(uint32_t vaddr, void *fvram, int vw, int vh,
 		                           leftBorderSize, rightBorderSize,
 		                           upperBorderSize, lowerBorderSize);
 	}
+}
+
+/**
+ * Where the last converted screen is in ST-RAM, and its fine scroll
+ * (with ConvertW, ConvertH, ConvertBPP and ConvertNextLine).
+ */
+void ConvGen_GetFrameInfo(uint32_t *vaddr, int *hscroll)
+{
+	*vaddr = nScreenBaseAddr;
+	*hscroll = nScreenHScroll;
 }
 
 bool ConvGen_Draw(uint32_t vaddr, int vw, int vh, int vbpp, int nextline,

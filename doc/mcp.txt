@@ -1,0 +1,237 @@
+Contents:
+
+1. Introduction
+2. How it works
+3. Setup
+4. Settings
+5. Tools
+6. The screen
+7. The mouse
+8. The serial ports
+9. The debugger
+10. Safety
+11. The protocol
+
+
+1. Introduction
+---------------
+
+Hatari has a built-in MCP (Model Context Protocol) server. With it, an AI
+agent (Claude Code, or another MCP client) can work a Hatari machine like
+a person at the keyboard:
+
+- look at the screen
+- type and use the mouse (GEM menus, dialogs, the desktop)
+- run shell commands on a serial port and get their output
+- change floppies
+- look inside the 68k: registers, memory, breakpoints, single steps
+
+It works on macOS, Linux and the BSDs (not Windows, not Emscripten, not
+the libretro core).
+
+See https://modelcontextprotocol.io/ for MCP itself.
+
+
+2. How it works
+---------------
+
+- Every Hatari built with MCP serves it. It is on by default. Each Hatari
+  opens a socket in /tmp/hatari-$UID/, a folder only your user can open,
+  and writes <pid>.json next to it, which says who it is.
+
+- "hatari --mcp-bridge" is the bridge. It is the one MCP server your agent
+  starts. It finds the running Hatari VMs and passes each tool call to the
+  VM you name. It opens no window and starts no VM.
+
+- VMs can come and go. The bridge keeps running. vm-wait waits for a VM
+  to start or to end.
+
+
+3. Setup
+--------
+
+1. Build Hatari. CMake turns MCP on where it finds Unix domain sockets,
+   pthreads and zlib ("- mcp :" in its summary). -DENABLE_MCP=OFF turns
+   it off.
+
+2. Add the bridge to your agent once:
+   - Claude Code:
+       claude mcp add hatari -s user -- /path/to/hatari --mcp-bridge
+     (macOS bundle: /path/to/Hatari.app/Contents/MacOS/Hatari --mcp-bridge)
+   - Other MCP clients: add a stdio server with that command.
+
+3. Start a VM from a shell, in its folder, as usual, for example:
+       hatari --machine ste --tos tos.img disk.st &
+
+4. In the agent: run vm-list, then vm-info and screenshot.
+
+Headless works: with SDL_VIDEODRIVER=dummy there is no window, but the
+agent still sees the screen.
+
+
+4. Settings
+-----------
+
+HATARI_MCP=0
+	Turns the MCP server off for this Hatari.
+HATARI_NAME=x
+	The VM's name in the tools (default: the name of the folder Hatari
+	runs in).
+
+
+5. Tools
+--------
+
+Every tool takes "vm": a name or PID from vm-list. You may leave it out
+while only one VM runs.
+
+vm-list		List the running VMs: name, PID, folder, who started it.
+vm-wait		Wait for a VM to start ("up") or end ("gone").
+vm-info		Describe the VM: run state, PC, machine, CPU, RAM, TOS,
+		disks, floppies, video mode, screen size, mouse, serial.
+		Use it first.
+vm-power	pause, resume, reset (warm, or cold) or quit (no "really
+		quit?" question).
+screenshot	A picture of the screen (PNG); region crops, scale zooms,
+		pointer marks the mouse.
+wait-screen	Wait until the screen changes, settles, or both. Use it
+		instead of sleeping.
+key		Press keys and combinations by Atari key names (ctrl+c,
+		alt+x, undo, help, kp-enter...).
+type-text	Type a string (US layout).
+mouse-move, mouse-click, mouse-drag, mouse-button, mouse-wheel
+		Use the mouse.
+pointer-locate	Say where the mouse pointer is, with a picture.
+serial-write, serial-read, serial-expect
+		Write, read and wait for text on the serial port.
+serial-run	Run a shell command on the serial port: its output and
+		exit status in one call.
+media		Insert or eject a floppy image in drive A or B.
+steps		Several tool calls in one, stopping at the first wait that
+		is not met.
+debug-registers, register-write
+		The 68k's registers and the next instructions; set a
+		register.
+memory-read, memory-write
+		Read or patch memory: ST-RAM, TT-RAM, TOS (read only).
+disassemble	68k code at an address.
+debug-run	Run until the CPU gets to an address (up to 16
+		breakpoints).
+debug-step	Run some instructions, then stop.
+
+The inputs (key, type-text, the mouse tools) take "then": wait for the
+screen to change or settle, and take a screenshot, in the same call.
+
+The tools work in guest time: one input step a VBL, and waits count VBLs.
+So they work the same with --fast-forward on.
+
+
+6. The screen
+-------------
+
+Screenshots are in guest pixels, without Hatari's borders, zoom and
+statusbar:
+
+- ST low resolution: 320x200
+- ST medium resolution: 640x200 (its pixels are twice as tall as wide)
+- ST high resolution: 640x400
+- TT and Falcon modes, and Hatari's extended VDI modes: their own size
+
+All tools take coordinates in these pixels, origin top-left. vm-info says
+the size. In ST modes the picture is Hatari's, so raster effects show, but
+the borders are cut off, also when a program draws in them. TT and Falcon
+pictures come from video memory and the palette.
+
+
+7. The mouse
+------------
+
+The tools send IKBD mouse packets, as the real mouse does. They read
+where the guest has the pointer from its Line-A variables (GCURX and
+GCURY, which TOS, EmuTOS and GEM keep up to date) and correct until it is
+there. When nothing says where it is (a game that has its own mouse code,
+or before the desktop), they push it into the top-left corner first and
+count from there.
+
+The wheel goes in as the cursor keys up and down, as Hatari does for the
+host's wheel.
+
+The host's mouse needs no grab: the tools work whether the window has
+the mouse or not. Their buttons and the host's add up. When a game puts
+the IKBD in joystick mode, their clicks are fire buttons, as the host's
+are.
+
+
+8. The serial ports
+-------------------
+
+The serial tools reach two ports:
+
+- Modem 1, the MFP's USART (BIOS device 6 and AUX on the ST, STE, Mega
+  STE and TT; u:/dev/modem1 under FreeMiNT).
+- Modem 2, SCC channel B, on the Mega STE, TT and Falcon (BIOS device 7,
+  u:/dev/modem2 under FreeMiNT). This is the Falcon's serial port.
+
+The tools see what the guest sends there, and their input comes before
+the input file's (--rs232-in, --scc-b-in). The output still goes to the
+output file too. The input goes to the port the guest last wrote to.
+
+Under FreeMiNT, start a shell on the port once, from a console window:
+
+	sh -i <u:/dev/modem1 >u:/dev/modem1 2>&1 &
+
+(u:/dev/modem2 on the Falcon). Then serial-run runs commands:
+{"command": "ls -l /"} returns the listing and the exit status.
+
+
+9. The debugger
+---------------
+
+debug-run and debug-step stop the CPU between two instructions, with all
+of Hatari's CPU cores. While stopped, the window stays alive, the sound
+is off, and the other tools work. vm-power resume, debug-step and
+debug-run go on. They work beside Hatari's own debugger.
+
+debug-registers, memory-read, memory-write, register-write and
+disassemble work while the CPU runs too; the registers are then a
+snapshot at a VBL. A write to memory also clears the CPU caches.
+
+Addresses are physical. The I/O space (0xff8000-0xffffff) is not read or
+written.
+
+
+10. Safety
+----------
+
+- The socket and the registry are in /tmp/hatari-$UID/, mode 0700: only
+  your user can reach them. Any program of yours can.
+- An agent can press keys, write memory and quit the VM, as you can.
+  Work on copies of disk images you care about.
+- HATARI_MCP=0 turns the server off for one run.
+
+
+11. The protocol
+----------------
+
+The bridge speaks MCP over stdio (JSON-RPC 2.0, protocol versions
+2025-11-25 and 2025-06-18). Between the bridge and a VM it is the same
+JSON-RPC, one message a line, on the VM's Unix socket. Long calls send
+progress notifications when the client asks for them, and stop when it
+cancels them.
+
+The code is in src/mcp/:
+
+server.c	the socket, calls, queues and the VBL hook
+tools.c		the tools
+keys.c		key names and the US layout
+bridge.c	hatari --mcp-bridge
+machine.c	the glue to Hatari
+stub.c		empty hooks for the libretro core and the tests
+tools.json, instructions.txt
+		the tool list and the agent's instructions; embed.sh
+		turns them into schema_data.h at build time
+
+Hatari calls it from main.c (start, stop), video.c (each VBL),
+sdl/gui_event.c (while paused), debug/debugcpu.c (before each
+instruction, only while a breakpoint or step is set), rs232.c and scc.c
+(the serial ports), and the "main" functions (--mcp-bridge).

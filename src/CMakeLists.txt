@@ -168,6 +168,19 @@ if(ENABLE_LIBRETRO)
 	set_target_properties(CoreHmsa PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif(ENABLE_LIBRETRO)
 
+if(ENABLE_MCP)
+	# the MCP server: its tool list and instructions go in as C strings
+	set(MCP_GEN ${CMAKE_CURRENT_BINARY_DIR}/mcp)
+	add_custom_command(OUTPUT ${MCP_GEN}/schema_data.h
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${MCP_GEN}
+		COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/mcp/embed.sh > ${MCP_GEN}/schema_data.h
+		DEPENDS mcp/embed.sh mcp/tools.json mcp/instructions.txt
+		COMMENT "Embedding the MCP tool list")
+	add_library(Mcp OBJECT mcp/server.c mcp/bridge.c mcp/tools.c mcp/keys.c
+		mcp/json.c mcp/png.c mcp/schemas.c mcp/machine.c ${MCP_GEN}/schema_data.h)
+	target_include_directories(Mcp PRIVATE mcp ${MCP_GEN} ${ZLIB_INCLUDE_DIR})
+endif(ENABLE_MCP)
+
 if(ENABLE_HATARI)
 	add_subdirectory(gui-sdl)
 	add_subdirectory(sdl)
@@ -182,6 +195,9 @@ if(ENABLE_HATARI)
 		$<TARGET_OBJECTS:Debug>
 		$<TARGET_OBJECTS:DebugUT>
 		$<TARGET_OBJECTS:Ui>)
+	if(ENABLE_MCP)
+		list(APPEND APP_TARGET_OBJECTS $<TARGET_OBJECTS:Mcp>)
+	endif(ENABLE_MCP)
 endif(ENABLE_HATARI)
 
 if(NOT ENABLE_HATARI)
@@ -324,6 +340,10 @@ if(ENABLE_LIBRETRO)
 			$<TARGET_OBJECTS:Debug>
 			$<TARGET_OBJECTS:DebugUT>
 			$<TARGET_OBJECTS:UiRetro>)
+	if(ENABLE_MCP)
+		# the core shares Hatari's MCP hooks, but has no server
+		target_sources(retro-hatari PRIVATE mcp/stub.c)
+	endif(ENABLE_MCP)
 endif(ENABLE_LIBRETRO)
 
 if(ENABLE_HATARI)
@@ -350,6 +370,10 @@ if(ENABLE_HATARI)
 		# Needed for socket() on Windows
 		target_link_libraries(${APP_NAME} ws2_32)
 	endif(WIN32)
+
+	if(ENABLE_MCP)
+		target_link_libraries(${APP_NAME} Threads::Threads)
+	endif(ENABLE_MCP)
 endif(ENABLE_HATARI)
 
 if(Readline_FOUND)

@@ -94,6 +94,9 @@
 #include "video.h"
 #include "psg.h"
 #include "mfp.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 
 #ifndef O_NONBLOCK
 # ifdef O_NDELAY
@@ -677,6 +680,15 @@ static bool SCC_Serial_Read_Byte ( int Channel , uint8_t *pValue )
 {
 	int nb;
 
+#if ENABLE_MCP
+	/* Channel B: the MCP serial tools' input comes before the file's */
+	if ( Channel == 1 && hatari_mcp_serial_pending ( HATARI_MCP_SERIAL_SCC ) > 0 )
+	{
+		*pValue = hatari_mcp_serial_rx();
+		return true;
+	}
+#endif
+
 	if ( SCC.Chn[Channel].ReadHandle >= 0 )
 	{
 		nb = read ( SCC.Chn[Channel].ReadHandle , pValue , 1 );
@@ -705,6 +717,12 @@ static void SCC_Serial_Write_Byte ( int Channel, uint8_t value )
 	int nb;
 
 	LOG_TRACE(TRACE_SCC, "scc serial write byte channel=%c value=$%02x\n", 'A'+Channel, value);
+
+#if ENABLE_MCP
+	/* Channel B: the MCP serial tools see what the guest sends */
+	if ( Channel == 1 )
+		hatari_mcp_serial_tx ( HATARI_MCP_SERIAL_SCC , value );
+#endif
 
 	if ( SCC.Chn[Channel].WriteHandle >= 0 )
 	{

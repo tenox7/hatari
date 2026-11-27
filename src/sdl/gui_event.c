@@ -26,6 +26,9 @@
 #include "shortcut.h"
 #include "statusbar_sdl.h"
 #include "video.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 
 
 static bool bIgnoreNextMouseMotion = false; /* Ignore next mouse motion (needed after SDL_WarpMouse) */
@@ -163,9 +166,18 @@ void GuiEvent_EventHandler(void)
 		else
 		{
 			ShortCut_ActKey();
+#if ENABLE_MCP
+			/* the MCP tools work while Hatari is paused */
+			hatari_mcp_poll();
+#endif
 			/* last (shortcut) event activated emulation? */
-			if ( bEmulationActive )
+			if ( bEmulationActive || bQuitProgram )
 				break;
+#if ENABLE_MCP
+			if (hatari_mcp_on())
+				events = SDL_WaitEventTimeout(&event, 20);
+			else
+#endif
 			events = SDL_WaitEvent(&event);
 		}
 		if (!events)
