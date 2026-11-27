@@ -158,6 +158,7 @@ typedef enum {
 	OPT_NETUSBEE,
 	OPT_NAT,
 	OPT_NAT_FORWARDS,
+	OPT_NAT_LOOPBACK,
 	OPT_USB1,
 	OPT_USB2,
 #endif
@@ -428,6 +429,8 @@ static const opt_t HatariOptions[] = {
 	  "<bool>", "Connect the card to the host's network through a built-in NAT (default on)" },
 	{ OPT_NAT_FORWARDS, NULL, "--nat-forwards",
 	  "<list>", "Host ports to the guest: tcp|udp:bind-ip:host-port:guest-port,..." },
+	{ OPT_NAT_LOOPBACK, NULL, "--nat-loopback",
+	  "<bool>", "The gateway (10.0.2.2) reaches the host's 127.0.0.1 (default off)" },
 	{ OPT_USB1, NULL, "--usb1",
 	  "<dev>", "NetUSBee USB port 1: none, keyboard, mouse, disk:<file>, disk-ro:<file>" },
 	{ OPT_USB2, NULL, "--usb2",
@@ -1739,6 +1742,9 @@ bool Opt_ParseParameters(int argc, const char * const argv[], int *exitval)
 			if (strlen(arg) >= sizeof(ConfigureParams.Net.szNatForwards))
 				return Opt_ShowError(OPT_NAT_FORWARDS, arg, "Too long");
 			strcpy(ConfigureParams.Net.szNatForwards, arg);
+			break;
+		case OPT_NAT_LOOPBACK:
+			ok = Opt_Bool(arg, OPT_NAT_LOOPBACK, &ConfigureParams.Net.bNatLoopback);
 			break;
 		case OPT_USB1:
 		case OPT_USB2:

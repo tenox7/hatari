@@ -69,7 +69,8 @@ int64_t usbClock()
 void applyNat(void)
 {
 	const CNF_NET *n = &ConfigureParams.Net;
-	std::string key = n->bNat ? std::string("nat ") + n->szNatForwards : std::string();
+	std::string key = n->bNat ? std::string(n->bNatLoopback ? "nat loopback " : "nat ") +
+		n->szNatForwards : std::string();
 	if (key == natKey)
 		return;
 	nat.close();
@@ -77,6 +78,7 @@ void applyNat(void)
 	if (n->bNat) {
 		NatBackend::Options o;
 		o.forwards = n->szNatForwards;
+		o.allowHostLoopback = n->bNatLoopback;
 		if (!NatBackend::available())
 			Log_AlertDlg(LOG_ERROR, "This Hatari has no host networking: the network card is not connected.");
 		else if (!nat.open(o))
