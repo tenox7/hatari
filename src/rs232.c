@@ -22,6 +22,9 @@ const char RS232_fileid[] = "Hatari rs232.c";
 #include "m68000.h"
 #include "mfp.h"
 #include "rs232.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 
 /* AmigaOS has termios.h, but no tcsetattr() and friends - d'oh! */
 #if !defined(HAVE_TCSETATTR)
@@ -58,7 +61,16 @@ struct RS232_s {
 
 	bool	ByteReceived;
 	uint8_t RxByte;
+	int	TxBusyTicks;		/* Timer D ticks until the byte leaves UDR */
 };
+
+/* A written byte leaves UDR one bit time later, not during the write.
+ * Timer D is the transmitter clock (TC): TC changes on every Timer D
+ * tick, and a bit lasts 16 TC periods (UCR /16 mode), so 32 ticks.
+ * Some drivers (e.g. Idris) write UDR and only then enable the
+ * "transmit buffer empty" interrupt: on a real MFP that works, because
+ * the interrupt comes later. */
+#define RS232_TX_BUSY_TICKS	32
 
 
 static struct RS232_s RS232_MFP;
@@ -176,8 +188,6 @@ static bool RS232_OpenCOMPort(void)
 {
 	bool ok = true;
 
-	RS232_MFP.ByteReceived = false;
-
 	if (!RS232_MFP.WriteFile && ConfigureParams.RS232.szOutFileName[0])
 	{
 		/* Create our serial file for output */
@@ -212,6 +222,9 @@ static bool RS232_OpenCOMPort(void)
 
 	if (!RS232_MFP.ReadFile && ConfigureParams.RS232.szInFileName[0])
 	{
+		/* No received byte is pending on a newly opened input */
+		RS232_MFP.ByteReceived = false;
+
 		/* Create our serial file for output */
 		RS232_MFP.ReadFile = File_Open(ConfigureParams.RS232.szInFileName, "rb");
 		if ( RS232_MFP.ReadFile )
@@ -275,6 +288,18 @@ static void RS232_CloseCOMPort(void)
 /*-----------------------------------------------------------------------*/
 void RS232_Update(void)
 {
+	if (RS232_MFP.TxBusyTicks > 0 && --RS232_MFP.TxBusyTicks == 0)
+		MFP_InputOnChannel(pMFP_Main, MFP_INT_TRN_BUF_EMPTY, 0);
+
+#if ENABLE_MCP
+	/* The MCP serial tools' input comes before the input file's */
+	if (!RS232_MFP.ByteReceived && hatari_mcp_serial_pending(HATARI_MCP_SERIAL_MFP) > 0)
+	{
+		RS232_MFP.RxByte = hatari_mcp_serial_rx();
+		RS232_MFP.ByteReceived = true;
+		MFP_InputOnChannel(pMFP_Main, MFP_INT_RCV_BUF_FULL, 0);
+	}
+#endif
 	if (!RS232_MFP.ByteReceived && RS232_MFP.ReadFile && File_InputAvailable(RS232_MFP.ReadFile))
 	{
 		int ch = fgetc(RS232_MFP.ReadFile);
@@ -555,9 +580,22 @@ void	RS232_Get_DCD_CTS ( uint8_t *pDCD , uint8_t *pCTS )
  */
 static bool RS232_TransferBytesTo(uint8_t *pBytes, int nBytes)
 {
+	bool sent = false;
+
 	/* Make sure there's a RS-232 connection if it's enabled */
 	if (ConfigureParams.RS232.bEnableRS232)
 		RS232_OpenCOMPort();
+
+#if ENABLE_MCP
+	/* The MCP serial tools see what the guest sends, file or not */
+	if (hatari_mcp_on())
+	{
+		int i;
+		for (i = 0; i < nBytes; i++)
+			hatari_mcp_serial_tx(HATARI_MCP_SERIAL_MFP, pBytes[i]);
+		sent = true;
+	}
+#endif
 
 	/* Have we connected to the RS232 ? */
 	if ( RS232_MFP.WriteFile )
@@ -566,13 +604,19 @@ static bool RS232_TransferBytesTo(uint8_t *pBytes, int nBytes)
 		if (fwrite(pBytes, 1, nBytes, RS232_MFP.WriteFile))
 		{
 			Dprintf(("RS232: Sent %i bytes ($%x ...)\n", nBytes, *pBytes));
-			MFP_InputOnChannel ( pMFP_Main , MFP_INT_TRN_BUF_EMPTY , 0 );
-
-			return true;   /* OK */
+			sent = true;
 		}
 	}
 
-	return false;  /* Failed */
+	if (sent)
+	{
+		if ( pMFP_Main->TCDCR & 0x07 )	/* Timer D runs: buffer empty later */
+			RS232_MFP.TxBusyTicks = RS232_TX_BUSY_TICKS;
+		else
+			MFP_InputOnChannel ( pMFP_Main , MFP_INT_TRN_BUF_EMPTY , 0 );
+	}
+
+	return sent;
 }
 
 
@@ -663,7 +707,16 @@ void RS232_TSR_ReadByte(void)
 {
 	M68000_WaitState(4);
 
-	IoMem[0xfffa2d] |= 0x80;        /* Buffer empty */
+	if (RS232_MFP.TxBusyTicks > 0 && !(pMFP_Main->TCDCR & 0x07))
+	{
+		/* Timer D was stopped: nothing clocks the byte out any more */
+		RS232_MFP.TxBusyTicks = 0;
+		MFP_InputOnChannel(pMFP_Main, MFP_INT_TRN_BUF_EMPTY, 0);
+	}
+	if (RS232_MFP.TxBusyTicks > 0)
+		IoMem[0xfffa2d] &= ~0x80;       /* Byte still in UDR */
+	else
+		IoMem[0xfffa2d] |= 0x80;        /* Buffer empty */
 
 	Dprintf(("RS232: Read from TSR: $%x\n", (int)IoMem[0xfffa2d]));
 }

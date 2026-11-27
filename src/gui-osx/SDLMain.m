@@ -28,6 +28,11 @@
 #import "PrefsController.h"
 #import "Shared.h"
 #import "video.h"
+#import "config.h"
+#import <string.h>
+#if ENABLE_MCP
+#import "hatari_mcp.h"
+#endif
 #import "avi_record.h"
 #import "debugui.h"
 #import "change.h"
@@ -512,6 +517,11 @@ static int IsFinderLaunch(const int argc, char **argv)
 /*----------------------------------------------------------------------*/
 int main (int argc, char *argv[])
 {
+#if ENABLE_MCP
+	// "hatari --mcp-bridge": the MCP server an agent starts, not a VM
+	if (argc >= 2 && (strcmp(argv[1], "--mcp-bridge") == 0 || strcmp(argv[1], "-mcp-bridge") == 0))
+		return hatari_mcp_bridge_main(argc, argv);
+#endif
 	// Copy the arguments into a global variable
 	if (IsFinderLaunch(argc, argv))
 	{

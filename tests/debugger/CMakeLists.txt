@@ -7,6 +7,10 @@ include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src/includes
 
 add_library(DebuggerTestLib test-dummies.c  ${CMAKE_SOURCE_DIR}/src/str.c
 	    $<TARGET_OBJECTS:DebugUT>)
+if(ENABLE_MCP)
+	# debugcpu.c calls the MCP debugger hook
+	target_sources(DebuggerTestLib PRIVATE ${CMAKE_SOURCE_DIR}/src/mcp/stub.c)
+endif(ENABLE_MCP)
 
 add_executable(test-breakcond test-breakcond.c)
 target_link_libraries(test-breakcond DebuggerTestLib)

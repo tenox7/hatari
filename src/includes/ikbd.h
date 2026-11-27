@@ -67,6 +67,7 @@ typedef struct {
 #define BUTTON_NULL      0x00     /* Button states, so can OR together mouse/joystick buttons */
 #define BUTTON_MOUSE     0x01
 #define BUTTON_JOYSTICK  0x02
+#define BUTTON_MCP       0x04     /* pressed by the MCP tools (src/mcp) */
 
 /* Mouse/Joystick modes */
 #define AUTOMODE_OFF			0
