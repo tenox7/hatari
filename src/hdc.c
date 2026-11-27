@@ -1335,7 +1335,14 @@ short int HDC_ReadCommandByte(int addr)
 	if (Config_IsMachineFalcon())
 		ret = Ncr5380_ReadByte(addr);
 	else
+	{
 		ret = AcsiBus.status;		/* ACSI status */
+		/* Reading the status byte acknowledges it: the device releases
+		 * its IRQ. Else GPIP5 (FDC IRQ and HDC IRQ) stays low, and TOS
+		 * takes each new floppy command as already done. */
+		if (bAcsiEmuOn)
+			HDC_Set_Line_IRQ_MFP ( HDC_IRQ_OFF );
+	}
 	return ret;
 }
 
