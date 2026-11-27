@@ -512,6 +512,7 @@ static const struct Config_Tag configs_Net[] =
 	{ "nCartDevice", Int_Tag, &ConfigureParams.Net.nCartDevice },
 	{ "bNat", Bool_Tag, &ConfigureParams.Net.bNat },
 	{ "szNatForwards", String_Tag, ConfigureParams.Net.szNatForwards },
+	{ "bNatLoopback", Bool_Tag, &ConfigureParams.Net.bNatLoopback },
 	{ "szUsb1", String_Tag, ConfigureParams.Net.szUsb[0] },
 	{ "szUsb2", String_Tag, ConfigureParams.Net.szUsb[1] },
 	{ NULL , Error_Tag, NULL }
@@ -776,6 +777,7 @@ void Configuration_SetDefault(void)
 	ConfigureParams.Net.nCartDevice = CNF_NET_CART_NONE;
 	ConfigureParams.Net.bNat = true;
 	ConfigureParams.Net.szNatForwards[0] = '\0';
+	ConfigureParams.Net.bNatLoopback = false;
 	strcpy(ConfigureParams.Net.szUsb[0], "none");
 	strcpy(ConfigureParams.Net.szUsb[1], "none");
 

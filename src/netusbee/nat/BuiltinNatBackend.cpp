@@ -458,8 +458,8 @@ private:
         log().warn("Net", std::string("built-in NAT: guest ") + what + " to " +
                               destination + ":" + std::to_string(port) +
                               " refused" +
-                              (loopback ? " — the host's loopback; set "
-                                          "uthernet_allow_loopback to opt in"
+                              (loopback ? " — the host's loopback; Hatari's "
+                                          "--nat-loopback on opens it"
                                         : "") +
                               " (said once)");
     }

@@ -346,6 +346,7 @@ typedef struct
   int nCartDevice;			/* CNF_NET_CART_* */
   bool bNat;				/* reach the host's network through the built-in NAT */
   char szNatForwards[FILENAME_MAX];		/* "tcp:127.0.0.1:2323:23,..." host ports to the guest */
+  bool bNatLoopback;			/* the gateway reaches the host's 127.0.0.1 */
   char szUsb[CNF_NET_USB_PORTS][FILENAME_MAX];	/* none, keyboard, mouse, disk:FILE, disk-ro:FILE */
 } CNF_NET;
 

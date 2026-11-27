@@ -66,14 +66,19 @@ MCP: vm-info says which card is on, and its network.
 	tcp|udp:bind-ip:host-port:guest-port. For example
 	tcp:127.0.0.1:2323:23 lets "telnet localhost 2323" on the host
 	reach the guest's telnet server.
+--nat-loopback <bool>
+	The gateway, 10.0.2.2, reaches the host's own 127.0.0.1, as in
+	QEMU's and ARAnyM's slirp (default off). Then the guest can use a
+	server that listens only on the host's loopback, such as a web
+	proxy. Every service on the host's loopback is open to the guest.
 --usb1 <dev>, --usb2 <dev>
 	What is on the NetUSBee's USB ports: none, keyboard, mouse,
 	disk:<file> (a disk image the guest may write), or
 	disk-ro:<file> (read only).
 
 The configuration file keeps them in its [Net] section: nCartDevice
-(0 none, 1 EtherNEC, 2 NetUSBee), bNat, szNatForwards, szUsb1 and
-szUsb2.
+(0 none, 1 EtherNEC, 2 NetUSBee), bNat, szNatForwards, bNatLoopback,
+szUsb1 and szUsb2.
 
 A change of card needs a cold reset. Changes of the NAT and the USB
 ports apply at once.
@@ -91,7 +96,7 @@ The NAT is a small router in Hatari:
 - --nat-forwards opens host ports to the guest
 
 The guest cannot reach the host's own loopback (127.0.0.1) through the
-gateway.
+gateway, unless --nat-loopback is on.
 
 Traces on stderr: NEOST_ENEC_TRACE=1 (the NE2000), NEOST_USB_TRACE=1
 (the ISP1160), NEOST_SLIRP_TRACE=1 (DNS questions and TCP connections
