@@ -63,6 +63,9 @@ const char Main_fileid[] = "Hatari main.c";
 #if ENABLE_MCP
 #include "hatari_mcp.h"
 #endif
+#if ENABLE_NETUSBEE
+#include "netusbee.h"
+#endif
 
 #include "falcon/dsp.h"
 #include "falcon/videl.h"
@@ -353,6 +356,9 @@ void Main_UnInit(void)
 {
 #if ENABLE_MCP
 	hatari_mcp_done();
+#endif
+#if ENABLE_NETUSBEE
+	NetUSBee_UnInit();
 #endif
 	Control_RemoveFifo();
 

@@ -29,6 +29,9 @@
 #include "vdi.h"
 #include "video.h"
 #include "version.h"
+#if ENABLE_NETUSBEE
+#include "netusbee.h"
+#endif
 
 #include <string.h>
 #include <strings.h>
@@ -606,7 +609,19 @@ void mach_info(sbuf *out)
 		if (ConfigureParams.Ide[i].bUseDevice)
 			sb_printf(out, "IDE %d: %s\n", i, ConfigureParams.Ide[i].sDeviceFile);
 	if (ConfigureParams.HardDisk.bUseHardDiskDirectories)
-		sb_printf(out, "GEMDOS drive: %s\n", ConfigureParams.HardDisk.szHardDiskDirectories[0]);
+		sb_printf(out, "GEMDOS drive: %s%s\n", ConfigureParams.HardDisk.szHardDiskDirectories[0],
+#if ENABLE_NETUSBEE
+			NetUSBee_Configured() ? " (off: the network card holds the cartridge port)" :
+#endif
+			"");
+#if ENABLE_NETUSBEE
+	{
+		char card[FILENAME_MAX * 2 + 512];
+		NetUSBee_Info(card, sizeof(card));
+		if (card[0])
+			sb_printf(out, "Network card: %s\n", card);
+	}
+#endif
 	if (bUseVDIRes)
 		sb_printf(out, "Video: Hatari's extended VDI mode, %dx%d, %d planes\n", VDIWidth, VDIHeight, VDIPlanes);
 	else if (Config_IsMachineFalcon() || Config_IsMachineTT())

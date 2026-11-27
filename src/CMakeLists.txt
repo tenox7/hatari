@@ -181,6 +181,36 @@ if(ENABLE_MCP)
 	target_include_directories(Mcp PRIVATE mcp ${MCP_GEN} ${ZLIB_INCLUDE_DIR})
 endif(ENABLE_MCP)
 
+if(ENABLE_NETUSBEE AND (ENABLE_HATARI OR ENABLE_LIBRETRO))
+	# the EtherNEC and NetUSBee (C++17, GPLv3): NeoST's devices, its built-in
+	# NAT, and the glue to Hatari
+	add_library(NetUSBee STATIC netusbee/netusbee.cpp
+		netusbee/io/Ne2000.cpp netusbee/io/Isp1160.cpp netusbee/io/UsbDevice.cpp
+		netusbee/net/NatBackend.cpp
+		netusbee/nat/BuiltinNatBackend.cpp netusbee/nat/NatPacket.cpp
+		netusbee/nat/NatDhcp.cpp netusbee/nat/NatDns.cpp netusbee/nat/NatAllowlist.cpp
+		netusbee/nat/NatUdp.cpp netusbee/nat/NatTcp.cpp
+		netusbee/nat/NatHostSockets.cpp netusbee/nat/W5100NameResolver.cpp)
+	target_include_directories(NetUSBee PRIVATE netusbee netusbee/nat)
+	target_compile_definitions(NetUSBee PRIVATE NEOST_WITH_NET=1)
+	if(APPLE)
+		# libc++'s note on old macOS deployment targets
+		target_compile_options(NetUSBee PRIVATE -Wno-\#warnings)
+	endif()
+	target_link_libraries(NetUSBee PUBLIC Threads::Threads)
+	if(WIN32)
+		target_link_libraries(NetUSBee PUBLIC ws2_32 iphlpapi)
+	else()
+		find_library(RESOLV_LIBRARY resolv)
+		if(RESOLV_LIBRARY)
+			target_link_libraries(NetUSBee PUBLIC ${RESOLV_LIBRARY})
+		endif()
+	endif()
+	if(ENABLE_LIBRETRO)
+		set_target_properties(NetUSBee PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+	endif()
+endif()
+
 if(ENABLE_HATARI)
 	add_subdirectory(gui-sdl)
 	add_subdirectory(sdl)
@@ -374,7 +404,15 @@ if(ENABLE_HATARI)
 	if(ENABLE_MCP)
 		target_link_libraries(${APP_NAME} Threads::Threads)
 	endif(ENABLE_MCP)
+
+	if(ENABLE_NETUSBEE)
+		target_link_libraries(${APP_NAME} NetUSBee)
+	endif(ENABLE_NETUSBEE)
 endif(ENABLE_HATARI)
+
+if(ENABLE_LIBRETRO AND ENABLE_NETUSBEE)
+	target_link_libraries(retro-hatari NetUSBee)
+endif()
 
 if(Readline_FOUND)
 	if(ENABLE_HATARI)
