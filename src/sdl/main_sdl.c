@@ -26,6 +26,10 @@
 #include "options.h"
 #include "screen_sdl.h"
 #include "utils.h"
+#if ENABLE_MCP
+#include <string.h>
+#include "hatari_mcp.h"
+#endif
 
 #ifdef WIN32
 #include "../gui-win/opencon.h"
@@ -122,6 +126,11 @@ void Main_ApplyStartupOptions(void)
  */
 int main(int argc, char *argv[])
 {
+#if ENABLE_MCP
+	/* "hatari --mcp-bridge": the MCP server an agent starts, not a VM */
+	if (argc >= 2 && (strcmp(argv[1], "--mcp-bridge") == 0 || strcmp(argv[1], "-mcp-bridge") == 0))
+		return hatari_mcp_bridge_main(argc, argv);
+#endif
 	/* Generate random seed */
 	Hatari_srand(time(NULL));
 

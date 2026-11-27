@@ -456,6 +456,9 @@ const char Video_fileid[] = "Hatari video.c";
 #include "stMemory.h"
 #include "vdi.h"
 #include "video.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 #include "ymFormat.h"
 #include "falcon/videl.h"
 #include "blitter.h"
@@ -5006,6 +5009,11 @@ void Video_InterruptHandler_VBL ( void )
 
 	/* Process shortcut keys */
 	ShortCut_ActKey();
+
+#if ENABLE_MCP
+	/* The MCP tools: the picture, input, calls, reset and quit */
+	hatari_mcp_vbl();
+#endif
 
 	/* Update the IKBD's internal clock */
 	IKBD_UpdateClockOnVBL ();

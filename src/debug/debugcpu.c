@@ -39,6 +39,9 @@ const char DebugCpu_fileid[] = "Hatari debugcpu.c";
 #include "tos.h"
 #include "str.h"
 #include "vars.h"
+#if ENABLE_MCP
+#include "hatari_mcp.h"
+#endif
 
 
 #define MEMDUMP_COLS   16      /* memdump, number of bytes per row */
@@ -1464,6 +1467,10 @@ uint32_t DebugCpu_InstrCount(void)
  */
 void DebugCpu_Check(void)
 {
+#if ENABLE_MCP
+	if (hatari_mcp_dbg_active)
+		hatari_mcp_dbg_check(M68000_GetPC());	/* an MCP breakpoint or step */
+#endif
 	nCpuInstructions++;
 	if (bCpuProfiling)
 	{
@@ -1515,20 +1522,38 @@ void DebugCpu_Check(void)
  * to call us after each instruction if "real-time" debugging like
  * breakpoints has been set.
  */
+static bool DebugCpu_Wanted(void)
+{
+#if ENABLE_MCP
+	if (hatari_mcp_dbg_active)
+		return true;
+#endif
+	return nCpuActiveCBs || nCpuSteps || bCpuProfiling || History_TrackCpu()
+	    || LOG_TRACE_LEVEL((TRACE_CPU_DISASM|TRACE_CPU_SYMBOLS|TRACE_CPU_REGS))
+	    || ConOutDevices;
+}
+
 void DebugCpu_SetDebugging(void)
 {
 	bCpuProfiling = Profile_CpuStart();
 	nCpuActiveCBs = BreakCond_CpuBreakPointCount();
 
-	if (nCpuActiveCBs || nCpuSteps || bCpuProfiling || History_TrackCpu()
-	    || LOG_TRACE_LEVEL((TRACE_CPU_DISASM|TRACE_CPU_SYMBOLS|TRACE_CPU_REGS))
-	    || ConOutDevices)
+	if (DebugCpu_Wanted())
 	{
 		M68000_SetDebugger(true);
 		nCpuInstructions = 0;
 	}	
 	else
 		M68000_SetDebugger(false);
+}
+
+/**
+ * Call the CPU debugger after each instruction, or not, without starting
+ * anything anew: for the MCP debugger hook going on or off.
+ */
+void DebugCpu_UpdateDebugging(void)
+{
+	M68000_SetDebugger(DebugCpu_Wanted());
 }
 
 
