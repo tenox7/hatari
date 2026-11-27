@@ -184,6 +184,7 @@ typedef enum {
 	OPT_ACSIHDIMAGE,
 	OPT_SCSIHDIMAGE,
 	OPT_SCSIVERSION,
+	OPT_SCSINET,
 	OPT_ACSIVERSION,
 	OPT_IDEMASTERHDIMAGE,
 	OPT_IDESLAVEHDIMAGE,
@@ -211,6 +212,13 @@ typedef enum {
 	OPT_MACHINE,		/* system options */
 	OPT_BLITTER,
 	OPT_DSP,
+	OPT_VME,
+	OPT_VMEBASE,
+	OPT_VMEVRAM,
+	OPT_XBUS,
+	OPT_USB,
+	OPT_USBDISK,
+	OPT_USBINPUT,
 	OPT_RTC_YEAR,
 	OPT_TIMERD,
 	OPT_FASTBOOT,
@@ -478,6 +486,8 @@ static const opt_t HatariOptions[] = {
 	  "<id>=<file>", "Emulate a SCSI harddrive (0-7) with an image <file>" },
 	{ OPT_SCSIVERSION,   NULL, "--scsi-ver",
 	  "<id>=<version>", "Which SCSI version (1-2) to emulate for given SCSI drive ID" },
+	{ OPT_SCSINET,       NULL, "--scsi-net",
+	  "<id>=<net>[,rom][,wedge=<n>]", "Emulate a DaynaPORT SCSI/Link ethernet adapter (0-7). <net>: slirp[,hostfwd=tcp:<hostport>-:<guestport>] (user-mode NAT), pcap:<if> (bridged; pcap:list), or a Linux TAP interface name; rom = real-ROM command gating, wedge = dropped-packet state after <n> frames" },
 	{ OPT_ACSIVERSION,   NULL, "--acsi-ver",
 	  "<id>=<version>", "Which SCSI version (1-2) to emulate for given ACSI drive ID" },
 	{ OPT_IDEMASTERHDIMAGE,   NULL, "--ide-master",
@@ -532,6 +542,20 @@ static const opt_t HatariOptions[] = {
 	  "<bool>", "Use blitter emulation (ST only)" },
 	{ OPT_DSP,       NULL, "--dsp",
 	  "<x>", "DSP emulation (x = none/dummy/emu, Falcon only)" },
+	{ OPT_VME,       NULL, "--vme",
+	  "<x>", "VME card emulation (x = none/trace/et4000/atw800, MegaSTE/TT only)" },
+	{ OPT_VMEBASE,   NULL, "--vme-base",
+	  "<addr>", "A24 base address of the VME card (ATW800/2 ADDR jumper: 0xA00000 closed, 0xC00000 open)" },
+	{ OPT_VMEVRAM,   NULL, "--vme-vram",
+	  "<int>", "ATW800/2 video memory in MB (2 or 4)" },
+	{ OPT_XBUS,      NULL, "--xbus",
+	  "<x>", "ISA (0xFC) / VME32 (0xFD) windows (x = none/trace, 32-bit addressing)" },
+	{ OPT_USB,       NULL, "--usb",
+	  "<x>", "USB host controller card (x = none/lightning, MegaSTE/TT only)" },
+	{ OPT_USBDISK,   NULL, "--usb-disk",
+	  "<file>", "A USB stick on the card's port 1, from this disk image" },
+	{ OPT_USBINPUT,  NULL, "--usb-input",
+	  "<bool>", "The keyboard and mouse as USB devices on the card's port 2 (not the IKBD)" },
 	{ OPT_RTC_YEAR,   NULL, "--rtc-year",
 	  "<int>", "Set initial year for RTC (0/1980-2079, 0=use host)" },
 	{ OPT_TIMERD,    NULL, "--timer-d",
@@ -1921,8 +1945,22 @@ bool Opt_ParseParameters(int argc, const char * const argv[], int *exitval)
 					&ConfigureParams.Scsi[drive].bUseDevice);
 			if (ok)
 			{
+				ConfigureParams.Scsi[drive].nDeviceType = SCSI_DEVTYPE_DISK;
 				bLoadAutoSave = false;
 			}
+			break;
+
+		case OPT_SCSINET:
+			str = Opt_DriveValue(arg, &drive);
+			if (drive < 0 || drive >= MAX_SCSI_DEVS)
+				return Opt_ShowError(OPT_SCSINET, str, "Invalid SCSI <id>, must be 0-7");
+			if (!str || !*str)
+				return Opt_ShowError(OPT_SCSINET, arg, "network (slirp, pcap:<if> or a TAP interface) missing");
+			strncpy(ConfigureParams.Scsi[drive].sNetworkIf, str,
+			        sizeof(ConfigureParams.Scsi[drive].sNetworkIf) - 1);
+			ConfigureParams.Scsi[drive].nDeviceType = SCSI_DEVTYPE_NETWORK;
+			ConfigureParams.Scsi[drive].bUseDevice = true;
+			bLoadAutoSave = false;
 			break;
 
 		case OPT_SCSIVERSION:
@@ -2229,6 +2267,77 @@ bool Opt_ParseParameters(int argc, const char * const argv[], int *exitval)
 			}
 #endif
 			ConfigureParams.System.nDSPType = val;
+			bLoadAutoSave = false;
+			break;
+		}
+
+		case OPT_VMEBASE:
+			val = strtol(arg, NULL, 0);
+			if (val < 0 || val > 0xFFFFFF)
+				return Opt_ShowError(OPT_VMEBASE, arg, "Invalid VME A24 address");
+			ConfigureParams.System.nVMEBase = val;
+			break;
+
+		case OPT_VMEVRAM:
+			val = strtol(arg, NULL, 0);
+			if (val != 2 && val != 4)
+				return Opt_ShowError(OPT_VMEVRAM, arg, "ATW800/2 video memory must be 2 or 4 MB");
+			ConfigureParams.System.nVMEVram = val;
+			break;
+
+		case OPT_XBUS:
+		{
+			static const opt_keyval_t keyval[] = {
+				{"none",   XBUS_TYPE_NONE},
+				{"off",    XBUS_TYPE_NONE},
+				{"trace",  XBUS_TYPE_TRACE},
+			};
+			if (!Opt_SetKeyVal(arg, keyval, ARRAY_SIZE(keyval), &val))
+				return Opt_ShowError(OPT_XBUS, arg, "Unknown ISA/VME32 window type");
+			ConfigureParams.System.nXBusType = val;
+			bLoadAutoSave = false;
+			break;
+		}
+
+		case OPT_USB:
+		{
+			static const opt_keyval_t keyval[] = {
+				{"none",      USB_TYPE_NONE},
+				{"off",       USB_TYPE_NONE},
+				{"lightning", USB_TYPE_LIGHTNING},
+			};
+			if (!Opt_SetKeyVal(arg, keyval, ARRAY_SIZE(keyval), &val))
+				return Opt_ShowError(OPT_USB, arg, "Unknown USB card type");
+			ConfigureParams.Usb.nUsbType = val;
+			bLoadAutoSave = false;
+			break;
+		}
+
+		case OPT_USBDISK:
+			ok = Opt_StrCpy(OPT_USBDISK, CHECK_FILE, ConfigureParams.Usb.szDiskImage,
+					arg, sizeof(ConfigureParams.Usb.szDiskImage), NULL);
+			if (ok)
+				bLoadAutoSave = false;
+			break;
+
+		case OPT_USBINPUT:
+			ok = Opt_Bool(arg, OPT_USBINPUT, &ConfigureParams.Usb.bHostInput);
+			break;
+
+		case OPT_VME:
+		{
+			static const opt_keyval_t keyval[] = {
+				{"none",   VME_TYPE_NONE},
+				{"off",    VME_TYPE_NONE},
+				{"trace",  VME_TYPE_TRACE},
+				{"et4000", VME_TYPE_ET4000},
+				{"atw800", VME_TYPE_ATW800},
+			};
+			if (!Opt_SetKeyVal(arg, keyval, ARRAY_SIZE(keyval), &val))
+			{
+				return Opt_ShowError(OPT_VME, arg, "Unknown VME card type");
+			}
+			ConfigureParams.System.nVMEType = val;
 			bLoadAutoSave = false;
 			break;
 		}

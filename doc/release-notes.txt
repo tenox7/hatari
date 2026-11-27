@@ -46,6 +46,10 @@ Emulation improvements:
     There is no support for CTR images, and the code might have problems
     with certain disk images, i.e. it is recommended to still use the
     original capslib in case of problems.
+- VME (MegaSTE and TT):
+  - "--vme trace" backs the VME windows with RAM and logs the accesses
+    with the new "vme" trace flag, to see what a card's driver does
+  - "--vme et4000" emulates a Nova/ET4000 graphics card
 
 Emulator improvements:
 - CLI options:
@@ -68,6 +72,7 @@ Emulator improvements:
   - Fix: allow exit from text edit mode when using just joystick
   - Fix: do not show recording in progress, if starting it failed
   - Audio + video recording functionality moved to its own dialog
+  - VME card selection in the System dialog
   - Number field values can now also be typed in
 - GEMDOS HD:
   - Fix: "Show parent" items missing from TeraDesk folder windows

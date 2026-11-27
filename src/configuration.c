@@ -437,34 +437,50 @@ static const struct Config_Tag configs_Scsi[] =
 	{ "sDeviceFile0", String_Tag, ConfigureParams.Scsi[0].sDeviceFile },
 	{ "nBlockSize0", Int_Tag, &ConfigureParams.Scsi[0].nBlockSize },
 	{ "nScsiVersion0", Int_Tag, &ConfigureParams.Scsi[0].nScsiVersion },
+	{ "nDeviceType0", Int_Tag, &ConfigureParams.Scsi[0].nDeviceType },
+	{ "sNetworkIf0", String_Tag, ConfigureParams.Scsi[0].sNetworkIf },
 	{ "bUseDevice1", Bool_Tag, &ConfigureParams.Scsi[1].bUseDevice },
 	{ "sDeviceFile1", String_Tag, ConfigureParams.Scsi[1].sDeviceFile },
 	{ "nBlockSize1", Int_Tag, &ConfigureParams.Scsi[1].nBlockSize },
 	{ "nScsiVersion1", Int_Tag, &ConfigureParams.Scsi[1].nScsiVersion },
+	{ "nDeviceType1", Int_Tag, &ConfigureParams.Scsi[1].nDeviceType },
+	{ "sNetworkIf1", String_Tag, ConfigureParams.Scsi[1].sNetworkIf },
 	{ "bUseDevice2", Bool_Tag, &ConfigureParams.Scsi[2].bUseDevice },
 	{ "sDeviceFile2", String_Tag, ConfigureParams.Scsi[2].sDeviceFile },
 	{ "nBlockSize2", Int_Tag, &ConfigureParams.Scsi[2].nBlockSize },
 	{ "nScsiVersion2", Int_Tag, &ConfigureParams.Scsi[2].nScsiVersion },
+	{ "nDeviceType2", Int_Tag, &ConfigureParams.Scsi[2].nDeviceType },
+	{ "sNetworkIf2", String_Tag, ConfigureParams.Scsi[2].sNetworkIf },
 	{ "bUseDevice3", Bool_Tag, &ConfigureParams.Scsi[3].bUseDevice },
 	{ "sDeviceFile3", String_Tag, ConfigureParams.Scsi[3].sDeviceFile },
 	{ "nBlockSize3", Int_Tag, &ConfigureParams.Scsi[3].nBlockSize },
 	{ "nScsiVersion3", Int_Tag, &ConfigureParams.Scsi[3].nScsiVersion },
+	{ "nDeviceType3", Int_Tag, &ConfigureParams.Scsi[3].nDeviceType },
+	{ "sNetworkIf3", String_Tag, ConfigureParams.Scsi[3].sNetworkIf },
 	{ "bUseDevice4", Bool_Tag, &ConfigureParams.Scsi[4].bUseDevice },
 	{ "sDeviceFile4", String_Tag, ConfigureParams.Scsi[4].sDeviceFile },
 	{ "nBlockSize4", Int_Tag, &ConfigureParams.Scsi[4].nBlockSize },
 	{ "nScsiVersion4", Int_Tag, &ConfigureParams.Scsi[4].nScsiVersion },
+	{ "nDeviceType4", Int_Tag, &ConfigureParams.Scsi[4].nDeviceType },
+	{ "sNetworkIf4", String_Tag, ConfigureParams.Scsi[4].sNetworkIf },
 	{ "bUseDevice5", Bool_Tag, &ConfigureParams.Scsi[5].bUseDevice },
 	{ "sDeviceFile5", String_Tag, ConfigureParams.Scsi[5].sDeviceFile },
 	{ "nBlockSize5", Int_Tag, &ConfigureParams.Scsi[5].nBlockSize },
 	{ "nScsiVersion5", Int_Tag, &ConfigureParams.Scsi[5].nScsiVersion },
+	{ "nDeviceType5", Int_Tag, &ConfigureParams.Scsi[5].nDeviceType },
+	{ "sNetworkIf5", String_Tag, ConfigureParams.Scsi[5].sNetworkIf },
 	{ "bUseDevice6", Bool_Tag, &ConfigureParams.Scsi[6].bUseDevice },
 	{ "sDeviceFile6", String_Tag, ConfigureParams.Scsi[6].sDeviceFile },
 	{ "nBlockSize6", Int_Tag, &ConfigureParams.Scsi[6].nBlockSize },
 	{ "nScsiVersion6", Int_Tag, &ConfigureParams.Scsi[6].nScsiVersion },
+	{ "nDeviceType6", Int_Tag, &ConfigureParams.Scsi[6].nDeviceType },
+	{ "sNetworkIf6", String_Tag, ConfigureParams.Scsi[6].sNetworkIf },
 	{ "bUseDevice7", Bool_Tag, &ConfigureParams.Scsi[7].bUseDevice },
 	{ "sDeviceFile7", String_Tag, ConfigureParams.Scsi[7].sDeviceFile },
 	{ "nBlockSize7", Int_Tag, &ConfigureParams.Scsi[7].nBlockSize },
 	{ "nScsiVersion7", Int_Tag, &ConfigureParams.Scsi[7].nScsiVersion },
+	{ "nDeviceType7", Int_Tag, &ConfigureParams.Scsi[7].nDeviceType },
+	{ "sNetworkIf7", String_Tag, ConfigureParams.Scsi[7].sNetworkIf },
 	{ NULL , Error_Tag, NULL }
 };
 
@@ -585,6 +601,19 @@ static const struct Config_Tag configs_System[] =
 	{ "bSoftFloatFPU", Bool_Tag, &ConfigureParams.System.bSoftFloatFPU },
 	{ "bMMU", Bool_Tag, &ConfigureParams.System.bMMU },
 	{ "VideoTiming", Int_Tag, &ConfigureParams.System.VideoTimingMode },
+	{ "nVMEType", Int_Tag, &ConfigureParams.System.nVMEType },
+	{ "nVMEBase", Int_Tag, &ConfigureParams.System.nVMEBase },
+	{ "nVMEVram", Int_Tag, &ConfigureParams.System.nVMEVram },
+	{ "nXBusType", Int_Tag, &ConfigureParams.System.nXBusType },
+	{ NULL , Error_Tag, NULL }
+};
+
+/* Used to load/save USB options */
+static const struct Config_Tag configs_Usb[] =
+{
+	{ "nUsbType", Int_Tag, &ConfigureParams.Usb.nUsbType },
+	{ "szDiskImage", String_Tag, ConfigureParams.Usb.szDiskImage },
+	{ "bHostInput", Bool_Tag, &ConfigureParams.Usb.bHostInput },
 	{ NULL , Error_Tag, NULL }
 };
 
@@ -862,6 +891,15 @@ void Configuration_SetDefault(void)
 	ConfigureParams.System.bCpuDataCache = true;
 	ConfigureParams.System.bCycleExactCpu = true;
 	ConfigureParams.System.VideoTimingMode = VIDEO_TIMING_MODE_WS3;
+	ConfigureParams.System.nVMEType = VME_TYPE_NONE;
+	ConfigureParams.System.nVMEBase = 0x00A00000;
+	ConfigureParams.System.nVMEVram = 2;
+	ConfigureParams.System.nXBusType = XBUS_TYPE_NONE;
+
+	/* Set USB defaults */
+	ConfigureParams.Usb.nUsbType = USB_TYPE_NONE;
+	ConfigureParams.Usb.szDiskImage[0] = '\0';
+	ConfigureParams.Usb.bHostInput = false;
 	ConfigureParams.System.bCompatibleCpu = true;
 	ConfigureParams.System.bBlitter = false;
 	ConfigureParams.System.bPatchTimerD = false;
@@ -1148,6 +1186,7 @@ void Configuration_Load(const char *psFileName)
 	Configuration_LoadSection(psFileName, configs_Printer, "[Printer]");
 	Configuration_LoadSection(psFileName, configs_Midi, "[Midi]");
 	Configuration_LoadSection(psFileName, configs_System, "[System]");
+	Configuration_LoadSection(psFileName, configs_Usb, "[USB]");
 	Configuration_LoadSection(psFileName, configs_Video, "[Video]");
 
 	/* Some more legacy handling: */
@@ -1212,6 +1251,7 @@ void Configuration_Save(void)
 	Configuration_SaveSection(sConfigFileName, configs_Printer, "[Printer]");
 	Configuration_SaveSection(sConfigFileName, configs_Midi, "[Midi]");
 	Configuration_SaveSection(sConfigFileName, configs_System, "[System]");
+	Configuration_SaveSection(sConfigFileName, configs_Usb, "[USB]");
 	Configuration_SaveSection(sConfigFileName, configs_Video, "[Video]");
 }
 
@@ -1254,6 +1294,8 @@ void Configuration_MemorySnapShot_Capture(bool bSave)
 	{
 		MemorySnapShot_Store(&ConfigureParams.Scsi[i].bUseDevice, sizeof(ConfigureParams.Scsi[i].bUseDevice));
 		MemorySnapShot_Store(ConfigureParams.Scsi[i].sDeviceFile, sizeof(ConfigureParams.Scsi[i].sDeviceFile));
+		MemorySnapShot_Store(&ConfigureParams.Scsi[i].nDeviceType, sizeof(ConfigureParams.Scsi[i].nDeviceType));
+		MemorySnapShot_Store(ConfigureParams.Scsi[i].sNetworkIf, sizeof(ConfigureParams.Scsi[i].sNetworkIf));
 	}
 	for (i = 0; i < MAX_IDE_DEVS; i++)
 	{

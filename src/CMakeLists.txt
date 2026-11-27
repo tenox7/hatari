@@ -28,7 +28,7 @@ set(SOURCES
 	floppies/stx.c
 	floppies/scp.c
 	gemdos.c
-	hdc.c
+	hdc.c daynaport.c hostnet.c
 	ide.c
 	ikbd.c
 	inffile.c
@@ -57,6 +57,16 @@ set(SOURCES
 	scc.c
 	screenSnapShot.c
 	scu_vme.c
+	video_et4000.c
+	vme_atw800.c
+	t425.c
+	vme_nova.c
+	vme_lightning.c
+	usb_isp1160.c
+	usb_dev.c
+	usb_storage.c
+	usb_hid.c
+	xbus.c
 	shortcut.c
 	sound.c
 	spec512.c
@@ -141,6 +151,14 @@ endif(X11_FOUND)
 if(CapsImage_FOUND)
 	include_directories(${CAPSIMAGE_INCLUDE_DIR})
 endif(CapsImage_FOUND)
+
+if(SLIRP_FOUND)
+	include_directories(${SLIRP_INCLUDE_DIRS})
+endif(SLIRP_FOUND)
+
+if(PCAP_FOUND)
+	include_directories(${PCAP_INCLUDE_DIRS})
+endif(PCAP_FOUND)
 
 if(Capstone_FOUND)
 	include_directories(${CAPSTONE_INCLUDE_DIR})
@@ -449,6 +467,24 @@ if(PortMidi_FOUND)
 		target_link_libraries(retro-hatari ${PORTMIDI_LIBRARY})
 	endif(ENABLE_LIBRETRO)
 endif(PortMidi_FOUND)
+
+if(SLIRP_FOUND)
+	target_link_directories(${APP_NAME} PRIVATE ${SLIRP_LIBRARY_DIRS})
+	target_link_libraries(${APP_NAME} ${SLIRP_LIBRARIES})
+	if(ENABLE_LIBRETRO)
+		target_link_directories(retro-hatari PRIVATE ${SLIRP_LIBRARY_DIRS})
+		target_link_libraries(retro-hatari ${SLIRP_LIBRARIES})
+	endif(ENABLE_LIBRETRO)
+endif(SLIRP_FOUND)
+
+if(PCAP_FOUND)
+	target_link_directories(${APP_NAME} PRIVATE ${PCAP_LIBRARY_DIRS})
+	target_link_libraries(${APP_NAME} ${PCAP_LIBRARIES})
+	if(ENABLE_LIBRETRO)
+		target_link_directories(retro-hatari PRIVATE ${PCAP_LIBRARY_DIRS})
+		target_link_libraries(retro-hatari ${PCAP_LIBRARIES})
+	endif(ENABLE_LIBRETRO)
+endif(PCAP_FOUND)
 
 if(CapsImage_FOUND)
 	if(ENABLE_HATARI)

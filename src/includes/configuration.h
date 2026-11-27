@@ -261,12 +261,20 @@ typedef struct
 #define MAX_SCSI_DEVS 8
 #define MAX_IDE_DEVS 2
 
+typedef enum
+{
+  SCSI_DEVTYPE_DISK,
+  SCSI_DEVTYPE_NETWORK      /* DaynaPORT SCSI/Link on host network sNetworkIf */
+} SCSI_DEVTYPE;
+
 typedef struct
 {
   bool bUseDevice;
   char sDeviceFile[FILENAME_MAX];
   int nBlockSize;
   int nScsiVersion;
+  SCSI_DEVTYPE nDeviceType;
+  char sNetworkIf[256];               /* hostnet.h spec + DaynaPORT options */
 } CNF_SCSIDEV;
 
 typedef enum
@@ -405,6 +413,33 @@ typedef enum
   VIDEO_TIMING_MODE_WS4,
 } VIDEOTIMINGMODE;
 
+typedef enum
+{
+  VME_TYPE_NONE,                  /* VME windows return bus errors */
+  VME_TYPE_TRACE,                 /* RAM-backed VME windows, all accesses traced */
+  VME_TYPE_ET4000,                /* Nova/ET4000 graphics card */
+  VME_TYPE_ATW800                 /* ATW800/2 "Seurat" FPGA graphics card */
+} VMETYPE;
+
+typedef enum
+{
+  XBUS_TYPE_NONE,                 /* 0xFC ISA / 0xFD VME32 windows: bus errors */
+  XBUS_TYPE_TRACE                 /* RAM-backed, all accesses traced (xbus.c) */
+} XBUSTYPE;
+
+typedef enum
+{
+  USB_TYPE_NONE,                  /* no USB host controller */
+  USB_TYPE_LIGHTNING              /* Lightning VME: an ISP1160 in the VME A16 space (MegaSTE/TT) */
+} USBTYPE;
+
+typedef struct
+{
+  USBTYPE nUsbType;               /* the USB host controller card (vme_lightning.c) */
+  char szDiskImage[FILENAME_MAX]; /* a USB stick on port 1: its image file, or empty */
+  bool bHostInput;                /* the host's keyboard and mouse as USB devices on port 2 */
+} CNF_USB;
+
 typedef struct
 {
   int nCpuLevel;
@@ -419,6 +454,10 @@ typedef struct
   bool bFastForward;
   bool bAddressSpace24;           /* true if using a 24-bit address bus */
   VIDEOTIMINGMODE VideoTimingMode;
+  VMETYPE nVMEType;               /* VME card emulation (MegaSTE and TT only) */
+  int nVMEBase;                   /* A24 base of the VME card (ATW800/2 ADDR jumper: 0xA00000 closed, 0xC00000 open) */
+  int nVMEVram;                   /* ATW800/2 VidMem window in MB: 2, or 4 (A0+A1 closed, TT only) */
+  XBUSTYPE nXBusType;             /* 0xFC ISA / 0xFD VME32 windows (32 bit addressing only) */
 
   bool bCycleExactCpu;
   bool bCpuDataCache;
@@ -460,6 +499,7 @@ typedef struct
   CNF_PRINTER Printer;
   CNF_MIDI Midi;
   CNF_SYSTEM System;
+  CNF_USB Usb;
   CNF_VIDEO Video;
 } CNF_PARAMS;
 

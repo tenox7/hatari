@@ -19,6 +19,8 @@
 #include "conv_st.h"
 #include "gui_event.h"
 #include "ikbd.h"
+#include "vme_lightning.h"
+#include "usb_dev.h"
 #include "keymap_sdl.h"
 #include "log.h"
 #include "screen.h"
@@ -55,6 +57,14 @@ void GuiEvent_WarpMouse(int x, int y, bool restore)
 	bIgnoreNextMouseMotion = true;
 }
 
+
+static int UsbMouseButtons;	/* the host's buttons, when the mouse is a USB device */
+
+/* the mouse as a USB device (--usb-input): instead of the IKBD */
+static bool GuiEvent_UsbMouse(void)
+{
+	return ConfigureParams.Usb.bHostInput && Lightning_IsEnabled();
+}
 
 /**
  * Handle mouse motion event.
@@ -93,6 +103,12 @@ static void GuiEvent_HandleMouseMotion(int dx, int dy)
 	rx = xrel - dx;
 	ry = yrel - dy;
 #endif
+
+	if (GuiEvent_UsbMouse())
+	{
+		usb_hid_mouse(dx, dy, UsbMouseButtons, 0);
+		return;
+	}
 
 	/* In zoomed low res mode, we divide dx and dy by the zoom factor so that
 	 * the ST mouse cursor stays in sync with the host mouse. However, we have
@@ -224,6 +240,17 @@ void GuiEvent_EventHandler(void)
 			break;
 
 		 case SDL_MOUSEBUTTONDOWN:
+			if (GuiEvent_UsbMouse())
+			{
+				if (event.button.button == SDL_BUTTON_LEFT)
+					UsbMouseButtons |= 1;
+				else if (event.button.button == SDL_BUTTON_RIGHT)
+					UsbMouseButtons |= 2;
+				else if (event.button.button == SDL_BUTTON_MIDDLE)
+					UsbMouseButtons |= 4;
+				usb_hid_mouse(0, 0, UsbMouseButtons, 0);
+				break;
+			}
 			if (event.button.button == SDL_BUTTON_LEFT)
 			{
 				if (Keyboard.LButtonDblClk == 0)
@@ -241,6 +268,17 @@ void GuiEvent_EventHandler(void)
 			break;
 
 		 case SDL_MOUSEBUTTONUP:
+			if (GuiEvent_UsbMouse())
+			{
+				if (event.button.button == SDL_BUTTON_LEFT)
+					UsbMouseButtons &= ~1;
+				else if (event.button.button == SDL_BUTTON_RIGHT)
+					UsbMouseButtons &= ~2;
+				else if (event.button.button == SDL_BUTTON_MIDDLE)
+					UsbMouseButtons &= ~4;
+				usb_hid_mouse(0, 0, UsbMouseButtons, 0);
+				break;
+			}
 			if (event.button.button == SDL_BUTTON_LEFT)
 			{
 				Keyboard.bLButtonDown &= ~BUTTON_MOUSE;
@@ -252,6 +290,11 @@ void GuiEvent_EventHandler(void)
 			break;
 
 		 case SDL_MOUSEWHEEL:
+			if (GuiEvent_UsbMouse())
+			{
+				usb_hid_mouse(0, 0, UsbMouseButtons, event.wheel.y);
+				break;
+			}
 			/* Simulate cursor keys on mouse wheel events */
 			if (event.wheel.x > 0)
 			{

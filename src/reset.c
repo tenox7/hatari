@@ -35,6 +35,8 @@ const char Reset_fileid[] = "Hatari reset.c";
 #include "scc.h"
 #include "screen.h"
 #include "scu_vme.h"
+#include "vme_nova.h"
+#include "xbus.h"
 #include "sound.h"
 #include "stMemory.h"
 #include "tos.h"
@@ -96,6 +98,8 @@ static int Reset_ST(bool bCold)
 	if (Config_IsMachineTT() || Config_IsMachineMegaSTE())
 	{
 		SCU_Reset( bCold );
+		VME_Reset( bCold );
+		XBus_Reset( bCold );
 	}
 	if (Config_IsMachineFalcon())
 	{

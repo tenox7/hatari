@@ -30,6 +30,8 @@ const char Main_fileid[] = "Hatari main.c";
 #include "fdc.h"
 #include "hdc.h"
 #include "ide.h"
+#include "vme_nova.h"
+#include "xbus.h"
 #include "acia.h"
 #include "ikbd.h"
 #include "ioMem.h"
@@ -235,6 +237,8 @@ static void Main_UnInitSubsystems(void)
 	NvRam_UnInit();
 	GemDOS_UnInitDrives();
 	Ide_UnInit();
+	VME_UnInit();
+	XBus_UnInit();
 	JoyUI_UnInit();
 	if (Sound_AreWeRecording())
 		Sound_EndRecording();

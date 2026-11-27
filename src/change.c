@@ -13,6 +13,7 @@
 const char Change_fileid[] = "Hatari change.c";
 
 #include <ctype.h>
+#include <string.h>
 #include "main.h"
 #include "configuration.h"
 #include "audio.h"
@@ -99,7 +100,10 @@ bool Change_DoNeedReset(CNF_PARAMS *current, CNF_PARAMS *changed)
 	for (i = 0; i < MAX_SCSI_DEVS; i++)
 	{
 		if (changed->Scsi[i].bUseDevice != current->Scsi[i].bUseDevice
+		    || changed->Scsi[i].nDeviceType != current->Scsi[i].nDeviceType
 		    || (strcmp(changed->Scsi[i].sDeviceFile, current->Scsi[i].sDeviceFile)
+		        && changed->Scsi[i].bUseDevice)
+		    || (strcmp(changed->Scsi[i].sNetworkIf, current->Scsi[i].sNetworkIf)
 		        && changed->Scsi[i].bUseDevice))
 			return true;
 	}
@@ -178,6 +182,16 @@ bool Change_DoNeedReset(CNF_PARAMS *current, CNF_PARAMS *changed)
 
 	/* A network card on or off changes the memory map */
 	if (current->Net.nCartDevice != changed->Net.nCartDevice)
+		return true;
+
+	/* Did change VME card emulation? */
+	if (changed->System.nVMEType != current->System.nVMEType)
+		return true;
+
+	/* Did change the USB card or what is plugged into it? */
+	if (changed->Usb.nUsbType != current->Usb.nUsbType
+	    || changed->Usb.bHostInput != current->Usb.bHostInput
+	    || strcmp(changed->Usb.szDiskImage, current->Usb.szDiskImage) != 0)
 		return true;
 
 	return false;
@@ -327,7 +341,10 @@ void Change_CopyChangedParamsToConfiguration(CNF_PARAMS *current, CNF_PARAMS *ch
 	for (i = 0; i < MAX_SCSI_DEVS; i++)
 	{
 		if (changed->Scsi[i].bUseDevice != current->Scsi[i].bUseDevice
+		    || changed->Scsi[i].nDeviceType != current->Scsi[i].nDeviceType
 		    || (strcmp(changed->Scsi[i].sDeviceFile, current->Scsi[i].sDeviceFile)
+		        && changed->Scsi[i].bUseDevice)
+		    || (strcmp(changed->Scsi[i].sNetworkIf, current->Scsi[i].sNetworkIf)
 		        && changed->Scsi[i].bUseDevice))
 		{
 			Dprintf("- SCSI image %i>\n", i);
