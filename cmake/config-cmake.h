@@ -114,6 +114,9 @@
 /* Define to 1 to build the MCP server for AI agents (src/mcp) */
 #cmakedefine ENABLE_MCP 1
 
+/* The EtherNEC and NetUSBee network cards on the cartridge port */
+#cmakedefine ENABLE_NETUSBEE 1
+
 /* Define to 1 to enable trace logs - undefine to slightly increase speed */
 #cmakedefine ENABLE_TRACING 1
 
