@@ -637,38 +637,58 @@ void Screen_ModeChanged(bool bForceChange)
 #endif
 
 /**
+ * Put the name of a shortcut's key (such as "F12" or "Cmd+O") in 'buf',
+ * or "" if it has none. mod_first: the key with the modifier, if there
+ * is one; else the key without it.
+ */
+static void Screen_GetShortcutKey(int shortcut, bool mod_first, char *buf, size_t size)
+{
+	int with = ConfigureParams.Shortcut.withModifier[shortcut];
+	int without = ConfigureParams.Shortcut.withoutModifier[shortcut];
+
+	buf[0] = '\0';
+	if (without && !(mod_first && with))
+		snprintf(buf, size, "%s", Keymap_GetKeyName(without));
+	else if (with)
+		snprintf(buf, size, SHORTCUT_MOD_NAME "%s", Keymap_GetKeyName(with));
+}
+
+/**
  * Put the name of the key that grabs and releases the mouse
  * (such as "F10" or "Cmd+M") in 'buf', or "" if there is none
  */
 void Screen_GetMouseGrabKey(char *buf, size_t size)
 {
-	int k;
-
-	buf[0] = '\0';
-	k = ConfigureParams.Shortcut.withoutModifier[SHORTCUT_MOUSEGRAB];
-	if (k)
-		snprintf(buf, size, "%s", Keymap_GetKeyName(k));
-	else if ((k = ConfigureParams.Shortcut.withModifier[SHORTCUT_MOUSEGRAB]))
-		snprintf(buf, size, SHORTCUT_MOD_NAME "%s", Keymap_GetKeyName(k));
+	Screen_GetShortcutKey(SHORTCUT_MOUSEGRAB, false, buf, size);
 }
 
 /**
- * Show the window title, with whether the mouse is grabbed and
- * the key that grabs or releases it
+ * Show the window title, with the key that opens the menu, whether
+ * the mouse is grabbed and the key that grabs or releases it
  */
 static void Screen_ShowTitle(void)
 {
 	const char *base = sTitleBase[0] ? sTitleBase : PROG_NAME;
-	char buf[sizeof(sTitleBase) + 64], key[40];
+	char buf[sizeof(sTitleBase) + 128], grab[64], key[40], menu[48];
 
 	Screen_GetMouseGrabKey(key, sizeof(key));
+	Screen_GetShortcutKey(SHORTCUT_OPTIONS, true, menu, sizeof(menu));
 
 	if (bMouseGrabbed && key[0])
-		snprintf(buf, sizeof(buf), "%s - mouse grabbed, %s releases it", base, key);
+		snprintf(grab, sizeof(grab), "mouse grabbed, %s releases it", key);
 	else if (bMouseGrabbed)
-		snprintf(buf, sizeof(buf), "%s - mouse grabbed", base);
+		snprintf(grab, sizeof(grab), "mouse grabbed");
 	else if (key[0])
-		snprintf(buf, sizeof(buf), "%s - %s grabs the mouse", base, key);
+		snprintf(grab, sizeof(grab), "%s grabs the mouse", key);
+	else
+		grab[0] = '\0';
+
+	if (menu[0] && grab[0])
+		snprintf(buf, sizeof(buf), "%s - %s menu, %s", base, menu, grab);
+	else if (menu[0])
+		snprintf(buf, sizeof(buf), "%s - %s menu", base, menu);
+	else if (grab[0])
+		snprintf(buf, sizeof(buf), "%s - %s", base, grab);
 	else
 		snprintf(buf, sizeof(buf), "%s", base);
 
