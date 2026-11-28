@@ -30,6 +30,7 @@
 #include "video.h"
 #include "version.h"
 #if ENABLE_NETUSBEE
+#include "riebl.h"
 #include "netusbee.h"
 #endif
 
@@ -618,6 +619,9 @@ void mach_info(sbuf *out)
 	{
 		char card[FILENAME_MAX * 2 + 512];
 		NetUSBee_Info(card, sizeof(card));
+		if (card[0])
+			sb_printf(out, "Network card: %s\n", card);
+		Riebl_Info(card, sizeof(card));
 		if (card[0])
 			sb_printf(out, "Network card: %s\n", card);
 	}

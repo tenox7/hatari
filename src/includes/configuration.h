@@ -356,6 +356,8 @@ typedef struct
   char szNatForwards[FILENAME_MAX];		/* "tcp:127.0.0.1:2323:23,..." host ports to the guest */
   bool bNatLoopback;			/* the gateway reaches the host's 127.0.0.1 */
   char szUsb[CNF_NET_USB_PORTS][FILENAME_MAX];	/* none, keyboard, mouse, disk:FILE, disk-ro:FILE */
+  bool bRiebl;				/* the Riebl card on the VME bus (TT, Mega STE) */
+  int nRieblAddr;			/* the VME A24 address of its memory */
 } CNF_NET;
 
 /* Printer configuration */

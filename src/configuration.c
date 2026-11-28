@@ -12,6 +12,7 @@
 const char Configuration_fileid[] = "Hatari configuration.c";
 
 #include "main.h"
+#include "riebl.h"
 #include "configuration.h"
 #include "conv_st.h"
 #include "cfgopts.h"
@@ -531,6 +532,8 @@ static const struct Config_Tag configs_Net[] =
 	{ "bNatLoopback", Bool_Tag, &ConfigureParams.Net.bNatLoopback },
 	{ "szUsb1", String_Tag, ConfigureParams.Net.szUsb[0] },
 	{ "szUsb2", String_Tag, ConfigureParams.Net.szUsb[1] },
+	{ "bRiebl", Bool_Tag, &ConfigureParams.Net.bRiebl },
+	{ "nRieblAddr", Int_Tag, &ConfigureParams.Net.nRieblAddr },
 	{ NULL , Error_Tag, NULL }
 };
 
@@ -809,6 +812,8 @@ void Configuration_SetDefault(void)
 	ConfigureParams.Net.bNatLoopback = false;
 	strcpy(ConfigureParams.Net.szUsb[0], "none");
 	strcpy(ConfigureParams.Net.szUsb[1], "none");
+	ConfigureParams.Net.bRiebl = false;
+	ConfigureParams.Net.nRieblAddr = RIEBL_ADDR_DEFAULT;
 
 	/* Set defaults for Screen */
 	ConfigureParams.Screen.bFullScreen = false;

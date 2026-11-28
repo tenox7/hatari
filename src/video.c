@@ -461,6 +461,7 @@ const char Video_fileid[] = "Hatari video.c";
 #endif
 #if ENABLE_NETUSBEE
 #include "netusbee.h"
+#include "riebl.h"
 #endif
 #include "ymFormat.h"
 #include "falcon/videl.h"
@@ -5100,8 +5101,9 @@ void Video_InterruptHandler_VBL ( void )
 #endif
 
 #if ENABLE_NETUSBEE
-	/* The network card: frames from the network, the USB clock */
+	/* The network cards: frames from the network, the USB clock */
 	NetUSBee_Vbl();
+	Riebl_Vbl();
 #endif
 
 	/* Update the IKBD's internal clock */

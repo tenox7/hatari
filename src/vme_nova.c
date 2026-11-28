@@ -41,6 +41,7 @@ const char VmeNova_fileid[] = "Hatari vme_nova.c";
 #include "video_et4000.h"
 #include "vme_atw800.h"
 #include "vme_lightning.h"
+#include "riebl.h"
 #include "vme_nova.h"
 
 
@@ -77,7 +78,8 @@ static uint64_t	VmeWriteCount;
 bool	VME_IsAvailable ( void )
 {
 	return ( Config_IsMachineTT() || Config_IsMachineMegaSTE() )
-	       && ( ConfigureParams.System.nVMEType != VME_TYPE_NONE || Lightning_IsEnabled() );
+	       && ( ConfigureParams.System.nVMEType != VME_TYPE_NONE || Lightning_IsEnabled()
+	            || Riebl_IsEnabled() );
 }
 
 
@@ -147,6 +149,7 @@ void	VME_Reset ( bool bCold )
 	VmeReadCount = 0;
 	VmeWriteCount = 0;
 	Lightning_Reset ( bCold );
+	Riebl_Reset ( bCold );
 
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_ET4000 )
 		ET4000_Reset ( bCold );
@@ -255,6 +258,11 @@ uae_u32 REGPARAM3 VME_Mem_bget ( uaecptr addr )
 		VmeReadCount++;
 		return Lightning_ReadByte ( LightOff );
 	}
+	if ( Riebl_Decode ( addr, &LightOff ) )
+	{
+		VmeReadCount++;
+		return Riebl_ReadByte ( LightOff );
+	}
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_NONE )
 	{
 		M68000_BusError ( addr, BUS_ERROR_READ, BUS_ERROR_SIZE_BYTE, BUS_ERROR_ACCESS_DATA, 0 );
@@ -293,6 +301,11 @@ uae_u32 REGPARAM3 VME_Mem_wget ( uaecptr addr )
 	{
 		VmeReadCount++;
 		return Lightning_ReadWord ( LightOff );
+	}
+	if ( Riebl_Decode ( addr, &LightOff ) )
+	{
+		VmeReadCount++;
+		return Riebl_ReadWord ( LightOff );
 	}
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_NONE )
 	{
@@ -333,6 +346,15 @@ uae_u32 REGPARAM3 VME_Mem_lget ( uaecptr addr )
 	{
 		VmeReadCount++;
 		return ( (uint32_t)Lightning_ReadWord ( LightOff ) << 16 ) | Lightning_ReadWord ( LightOff + 2 );
+	}
+	if ( Riebl_Decode ( addr, &LightOff ) )
+	{
+		uint32_t hi;
+		VmeReadCount++;
+		hi = Riebl_ReadWord ( LightOff );
+		if ( !Riebl_Decode ( addr + 2, &LightOff ) )
+			return ( hi << 16 ) | 0xffff;
+		return ( hi << 16 ) | Riebl_ReadWord ( LightOff );
 	}
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_NONE )
 	{
@@ -376,6 +398,12 @@ void REGPARAM3 VME_Mem_bput ( uaecptr addr, uae_u32 val )
 		Lightning_WriteByte ( LightOff, val );
 		return;
 	}
+	if ( Riebl_Decode ( addr, &LightOff ) )
+	{
+		VmeWriteCount++;
+		Riebl_WriteByte ( LightOff, val );
+		return;
+	}
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_NONE )
 	{
 		M68000_BusError ( addr, BUS_ERROR_WRITE, BUS_ERROR_SIZE_BYTE, BUS_ERROR_ACCESS_DATA, val );
@@ -412,6 +440,12 @@ void REGPARAM3 VME_Mem_wput ( uaecptr addr, uae_u32 val )
 	{
 		VmeWriteCount++;
 		Lightning_WriteWord ( LightOff, val );
+		return;
+	}
+	if ( Riebl_Decode ( addr, &LightOff ) )
+	{
+		VmeWriteCount++;
+		Riebl_WriteWord ( LightOff, val );
 		return;
 	}
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_NONE )
@@ -453,6 +487,14 @@ void REGPARAM3 VME_Mem_lput ( uaecptr addr, uae_u32 val )
 		VmeWriteCount++;
 		Lightning_WriteWord ( LightOff, val >> 16 );
 		Lightning_WriteWord ( LightOff + 2, val );
+		return;
+	}
+	if ( Riebl_Decode ( addr, &LightOff ) )
+	{
+		VmeWriteCount++;
+		Riebl_WriteWord ( LightOff, val >> 16 );
+		if ( Riebl_Decode ( addr + 2, &LightOff ) )
+			Riebl_WriteWord ( LightOff, val );
 		return;
 	}
 	if ( ConfigureParams.System.nVMEType == VME_TYPE_NONE )

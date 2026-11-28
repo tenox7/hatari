@@ -29,7 +29,7 @@ set(SOURCES
 	floppies/scp.c
 	gemdos.c
 	hdc.c daynaport.c hostnet.c
-	ne2000.c netusbee.c
+	ne2000.c netusbee.c am7990.c riebl.c
 	ide.c
 	ikbd.c
 	inffile.c
