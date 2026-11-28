@@ -435,7 +435,7 @@ static bool slirp_open(hostnet_t *net, const char *opts,
 	cfg.if_mtu = 1500;
 	cfg.if_mru = 1500;
 
-	/* options: net= host= dns= guest= hostfwd= (the rest to the caller) */
+	/* options: net= host= dns= guest= loopback= hostfwd= (the rest to the caller) */
 	for (o = opts; o && *o; o = strchr(o, ',') ? strchr(o, ',') + 1 : NULL)
 	{
 		if (*o == ',')
@@ -464,6 +464,17 @@ static bool slirp_open(hostnet_t *net, const char *opts,
 		else if (strncmp(o, "guest=", 6) == 0)
 		{
 			if (!parse_addr(o + 6, &cfg.vdhcp_start))
+				goto bad;
+		}
+		else if (strncmp(o, "loopback=", 9) == 0)
+		{
+			/* off: the host address (.2) no longer reaches the host's
+			 * own 127.0.0.1 */
+			if (strncmp(o + 9, "off", 3) == 0)
+				cfg.disable_host_loopback = true;
+			else if (strncmp(o + 9, "on", 2) == 0)
+				cfg.disable_host_loopback = false;
+			else
 				goto bad;
 		}
 		else if (strncmp(o, "hostfwd=", 8) == 0)

@@ -27,21 +27,6 @@ Contents:
  1) License
  ----------
 
-This fork of Hatari is distributed under the GNU General Public License,
-version 3 or later (gpl-3.0.txt):
-
-- Most files come from Hatari and are "version 2 or later" (gpl.txt). You
-  may also use them alone under version 2, as Hatari's own.
-- The EtherNEC and NetUSBee emulation (src/netusbee/) comes from NeoST
-  (https://github.com/habib256/neost, (c) 2026 VERHILLE Arnaud) and is
-  "version 3 or later". A Hatari built with it (ENABLE_NETUSBEE, on by
-  default) is under version 3 as a whole.
-- The IPF exception at the end of this section is from Hatari's authors and
-  covers their code only, not src/netusbee/. So a Hatari built with
-  ENABLE_NETUSBEE does not link the IPF library (capsimage).
-
-Hatari's own license text follows.
-
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Soft-
 ware Foundation; either version 2 of the License, or (at your option) any
@@ -308,7 +293,6 @@ Their main run-time dependencies are:
   - gui-sdl/ -- builtin SDL GUI for Hatari
   - gui-win/ -- MS Windows console code + icon
   - includes/ -- C-source prototypes, enumerations etc
-  - netusbee/ -- EtherNEC and NetUSBee network cards (C++, from NeoST, GPLv3)
   - sdl/ -- (most of the) SDL specific Hatari code
 * tests/ -- shell/python scripts & programs for testing emulator functionality
   - See tests/readme.txt for details

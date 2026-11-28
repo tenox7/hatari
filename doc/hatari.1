@@ -380,20 +380,20 @@ See netusbee.txt
 .TP
 .B \-\-netusbee <bool>
 Put a NetUSBee (NE2000 and a USB host with 2 ports) on the cartridge port.
+Its USB host is not emulated yet.
 A card on the cartridge port turns off the cartridge image, the GEMDOS
 HD folder, the extended VDI modes and GEMDOS/VDI/AES tracing
 .TP
 .B \-\-nat <bool>
-Connect the card to the host's network through a built-in NAT
-(default on). The guest is 10.0.2.15, the gateway 10.0.2.2, DNS 10.0.2.3
+Connect the card to the host's network through a NAT (libslirp,
+default on). The guest is 10.0.2.15, the gateway 10.0.2.2, DNS 10.0.2.3
 .TP
 .B \-\-nat\-forwards <list>
 Host ports that go to the guest, comma separated, each one
 tcp|udp:bind-ip:host-port:guest-port
 .TP
 .B \-\-usb1 <device>
-NetUSBee USB port 1: none, keyboard, mouse, disk:<file> or
-disk-ro:<file>. A USB keyboard or mouse takes the host's keys or mouse
+NetUSBee USB port 1. The USB host is not emulated yet: only none
 .TP
 .B \-\-usb2 <device>
 NetUSBee USB port 2, as \-\-usb1

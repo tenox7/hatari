@@ -57,21 +57,9 @@ option(ENABLE_DSP_EMU "Enable DSP 56k emulator for Falcon mode" ON)
 option(ENABLE_TRACING "Enable tracing messages for debugging" ON)
 option(ENABLE_TOOLS "Build the Hatari tools" ON)
 
-# The EtherNEC and NetUSBee network cards (src/netusbee, from NeoST) are C++17
-# and GPL version 3 or later: a Hatari built with them is under version 3, and
-# does not link the IPF library (see readme.txt)
-include(CheckLanguage)
-check_language(CXX)
-if(CMAKE_CXX_COMPILER AND NOT EMSCRIPTEN)
-	set(NETUSBEE_POSSIBLE ON)
-endif()
-cmake_dependent_option(ENABLE_NETUSBEE "EtherNEC and NetUSBee network cards (GPLv3, no IPF library)"
-                       ON NETUSBEE_POSSIBLE OFF)
-if(ENABLE_NETUSBEE)
-	enable_language(CXX)
-	set(CMAKE_CXX_STANDARD 17)
-	set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
+# The EtherNEC and NetUSBee network cards on the cartridge port (ne2000.c,
+# netusbee.c); their NAT needs libslirp
+option(ENABLE_NETUSBEE "EtherNEC and NetUSBee network cards" ON)
 
 find_path(LIBRETRO_INCLUDE_DIR libretro.h
           PATH_SUFFIXES libretro libretro-common)
@@ -187,9 +175,7 @@ if(PCAP_FOUND)
 	set(HAVE_PCAP 1)
 endif()
 
-if(NOT ENABLE_NETUSBEE)
-	find_package(CapsImage)
-endif()
+find_package(CapsImage)
 if(CapsImage_FOUND)
 	set(HAVE_CAPSIMAGE 1)
 endif(CapsImage_FOUND)
@@ -571,8 +557,6 @@ endif(PCAP_FOUND)
 
 if(CapsImage_FOUND)
   message( "  - capsimage :\tv5 found, allow to use .IPF, .RAW and .CTR disk images" )
-elseif(ENABLE_NETUSBEE)
-  message( "  - capsimage :\tnot used: its license does not go with the network cards' GPLv3" )
 else()
   message( "  - capsimage :\tv5 not found, install it to use .IPF, .RAW and .CTR disk images" )
 endif(CapsImage_FOUND)
@@ -596,7 +580,7 @@ endif(Udev_FOUND)
 if(ENABLE_NETUSBEE)
   message( "  - netusbee :\tEtherNEC and NetUSBee network cards (see doc/netusbee.txt)" )
 else()
-  message( "  - netusbee :\tno network cards (off, or no C++17 compiler)" )
+  message( "  - netusbee :\tno network cards (off)" )
 endif(ENABLE_NETUSBEE)
 
 if(ENABLE_MCP)
