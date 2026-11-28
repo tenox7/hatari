@@ -459,6 +459,9 @@ const char Video_fileid[] = "Hatari video.c";
 #if ENABLE_MCP
 #include "hatari_mcp.h"
 #endif
+#if ENABLE_NETUSBEE
+#include "netusbee.h"
+#endif
 #include "ymFormat.h"
 #include "falcon/videl.h"
 #include "blitter.h"
@@ -5013,6 +5016,11 @@ void Video_InterruptHandler_VBL ( void )
 #if ENABLE_MCP
 	/* The MCP tools: the picture, input, calls, reset and quit */
 	hatari_mcp_vbl();
+#endif
+
+#if ENABLE_NETUSBEE
+	/* The network card: frames from the network, the USB clock */
+	NetUSBee_Vbl();
 #endif
 
 	/* Update the IKBD's internal clock */

@@ -1,0 +1,190 @@
+Contents:
+
+1. Introduction
+2. Setup
+3. Options
+4. The network
+5. USB
+6. The cartridge port
+7. Drivers
+8. License
+9. The code
+
+
+1. Introduction
+---------------
+
+This Hatari can put a network card on the cartridge port:
+
+- EtherNEC: an NE2000 (RTL8019AS) network card, after the design of
+  Dr. Thomas Redelberger.
+- NetUSBee: the same NE2000, and an ISP1160 USB host with two ports. On
+  each port: a USB keyboard, a USB mouse, or a disk image (USB mass
+  storage).
+
+Hatari puts the card on the cartridge port of every machine: ST, STE,
+Mega ST, Mega STE, TT and Falcon.
+
+The card reaches the host's network through a built-in NAT: no TAP
+device, no root, no other program.
+
+The emulation comes from NeoST (https://github.com/habib256/neost).
+
+
+2. Setup
+--------
+
+1. Build Hatari. CMake turns the cards on when it finds a C++17 compiler
+   ("- netusbee :" in its summary). -DENABLE_NETUSBEE=OFF turns them off.
+
+2. Start Hatari with a card:
+       hatari --ethernec on
+   or
+       hatari --netusbee on --usb1 keyboard --usb2 mouse
+
+3. In the guest, load a driver (see 7) and set the network:
+       IP address   10.0.2.15, netmask 255.255.255.0
+       gateway      10.0.2.2
+       DNS          10.0.2.3
+   The NAT also serves DHCP.
+
+MCP: vm-info says which card is on, and its network.
+
+
+3. Options
+----------
+
+--ethernec <bool>
+	Put an EtherNEC on the cartridge port.
+--netusbee <bool>
+	Put a NetUSBee on the cartridge port.
+--nat <bool>
+	Connect the card to the host's network through the built-in NAT
+	(default on). Off: the card is on a network of its own.
+--nat-forwards <list>
+	Host ports that go to the guest, comma separated, each one
+	tcp|udp:bind-ip:host-port:guest-port. For example
+	tcp:127.0.0.1:2323:23 lets "telnet localhost 2323" on the host
+	reach the guest's telnet server.
+--nat-loopback <bool>
+	The gateway, 10.0.2.2, reaches the host's own 127.0.0.1, as in
+	QEMU's and ARAnyM's slirp (default off). Then the guest can use a
+	server that listens only on the host's loopback, such as a web
+	proxy. Every service on the host's loopback is open to the guest.
+--usb1 <dev>, --usb2 <dev>
+	What is on the NetUSBee's USB ports: none, keyboard, mouse,
+	disk:<file> (a disk image the guest may write), or
+	disk-ro:<file> (read only).
+
+The configuration file keeps them in its [Net] section: nCartDevice
+(0 none, 1 EtherNEC, 2 NetUSBee), bNat, szNatForwards, bNatLoopback,
+szUsb1 and szUsb2.
+
+A change of card needs a cold reset. Changes of the NAT and the USB
+ports apply at once.
+
+
+4. The network
+--------------
+
+The NAT is a small router in Hatari:
+
+- the guest is 10.0.2.15, the gateway 10.0.2.2, DNS 10.0.2.3
+- TCP and UDP from the guest go out through the host's sockets, as if
+  Hatari itself opened them
+- DNS questions go to the host's resolver
+- --nat-forwards opens host ports to the guest
+
+The guest cannot reach the host's own loopback (127.0.0.1) through the
+gateway, unless --nat-loopback is on.
+
+Traces on stderr: NEOST_ENEC_TRACE=1 (the NE2000), NEOST_USB_TRACE=1
+(the ISP1160), NEOST_SLIRP_TRACE=1 (DNS questions and TCP connections
+through the NAT).
+
+
+5. USB
+------
+
+Keys and the mouse go where a person would use them:
+
+- When a USB keyboard is on the NetUSBee, the host's keys (and the MCP
+  key tools) go to it, not to the Atari keyboard. A key goes up where it
+  went down.
+- When a USB mouse is on the NetUSBee, the host's mouse (and the MCP
+  mouse tools) go to it. The joysticks stay on the IKBD.
+
+So without a USB driver in the guest, a USB keyboard or mouse is dead:
+leave the ports at none until the driver is in.
+
+A USB disk is a raw image of 512-byte sectors, up to 4 GB.
+
+
+6. The cartridge port
+---------------------
+
+The card holds the cartridge port, as the real card does. So while a
+card is on, Hatari has none of what needs its own cartridge code:
+
+- no cartridge image (--cartridge)
+- no GEMDOS HD folder (--harddrive): use an ACSI, SCSI or IDE disk image
+  instead
+- no extended VDI mode (--vdi)
+- no autostart, no GEMDOS, VDI or AES tracing
+
+Hatari says so when it starts.
+
+The cartridge port can only be read. The card's driver writes a register
+with a read in $FB0000-$FBFFFF, the data in the address, and reads a
+register at $FA0000 + register * 512. A word is one bus cycle; the NE2000
+drives the even byte only.
+
+The card has no interrupt line: the drivers poll it. A snapshot keeps
+the card's registers and buffers and the USB devices, not the network
+connections.
+
+
+7. Drivers
+----------
+
+The network (both cards): the EtherNEC drivers, unchanged:
+- STinG: ENEC.STX (Thomas Redelberger)
+- MiNTnet under FreeMiNT: its EtherNEC .XIF driver
+- MagiCNet
+
+USB (NetUSBee): NeoST tested the 68000 USB4TOS drivers.
+
+A test: NeoST's disks/sting_ethernec.st boots STinG 1.26 with ENEC.STX
+from the AUTO folder. Its STGTEST.PRG sets the port up, resolves a name,
+gets a web page, and writes what happened to the serial port:
+	hatari --machine ste --tos etos256us.img --ethernec on \
+	       --disk-a sting_ethernec.st --rs232-out serial.txt
+serial.txt then says DNS=a.b.c.d and HTTP/1.1.
+
+
+8. License
+----------
+
+The code in src/netusbee/ comes from NeoST, (c) 2026 VERHILLE Arnaud,
+under the GNU GPL version 3 or later (gpl-3.0.txt). So a Hatari built
+with it is under version 3 as a whole, and does not link the IPF
+library (capsimage), whose license does not go with GPL version 3. See
+readme.txt.
+
+
+9. The code
+-----------
+
+src/netusbee/ (NeoST's files are unchanged, from NeoST commit 9ff30ac):
+
+netusbee.cpp	the glue to Hatari (src/includes/netusbee.h)
+io/		NeoST's devices: Ne2000, Isp1160, UsbDevice
+net/		NeoST's network backends (NatBackend)
+nat/		NeoST's built-in NAT (from POM2)
+core/, util/	what NeoST's devices need from NeoST, on top of Hatari
+		(the snapshot, the log, the CPU clock)
+
+Hatari calls it from cpu/memory.c (the $FA0000-$FBFFFF bank), reset.c,
+video.c (each VBL), ikbd.c (keys and mouse), cart.c and tos.c (no
+cartridge code with a card), memorySnapShot.c, change.c, options.c and
+configuration.c.

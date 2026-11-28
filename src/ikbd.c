@@ -93,6 +93,9 @@ const char IKBD_fileid[] = "Hatari ikbd.c";
 #include "utils.h"
 #include "acia.h"
 #include "clocks_timings.h"
+#if ENABLE_NETUSBEE
+#include "netusbee.h"
+#endif
 
 
 #define DBL_CLICK_HISTORY  0x07     /* Number of frames since last click to see if need to send one or two clicks */
@@ -1676,7 +1679,7 @@ static void IKBD_SendCursorMousePacket(void)
 /**
  * Return packets from keyboard for auto, rel mouse, joystick etc...
  */
-static void IKBD_SendAutoKeyboardCommands(void)
+static void IKBD_SendAutoKeyboardCommands_Ikbd(void)
 {
 	/* Don't do anything until processor is first reset */
 	if ( bDuringResetCriticalTime )
@@ -1735,6 +1738,30 @@ static void IKBD_SendAutoKeyboardCommands(void)
 		(*pIKBD_CustomCodeHandler_Read) ();
 }
 
+static void IKBD_SendAutoKeyboardCommands(void)
+{
+#if ENABLE_NETUSBEE
+	/* A USB mouse on the NetUSBee takes the mouse's moves and buttons
+	 * (the host's and the MCP tools'). The IKBD keeps the joysticks. */
+	if (!bDuringResetCriticalTime && NetUSBee_UsbMouse())
+	{
+		const int mouse = BUTTON_MOUSE | BUTTON_MCP;
+		int left = Keyboard.bLButtonDown, right = Keyboard.bRButtonDown;
+
+		NetUSBee_Mouse(KeyboardProcessor.Mouse.dx, KeyboardProcessor.Mouse.dy,
+		               (left & mouse) != 0, (right & mouse) != 0);
+		KeyboardProcessor.Mouse.dx = KeyboardProcessor.Mouse.dy = 0;
+		Keyboard.bLButtonDown &= ~mouse;
+		Keyboard.bRButtonDown &= ~mouse;
+		IKBD_SendAutoKeyboardCommands_Ikbd();
+		Keyboard.bLButtonDown = (Keyboard.bLButtonDown & ~mouse) | (left & mouse);
+		Keyboard.bRButtonDown = (Keyboard.bRButtonDown & ~mouse) | (right & mouse);
+		return;
+	}
+#endif
+	IKBD_SendAutoKeyboardCommands_Ikbd();
+}
+
 
 /*-----------------------------------------------------------------------*/
 /**
@@ -1742,6 +1769,12 @@ static void IKBD_SendAutoKeyboardCommands(void)
  */
 void IKBD_PressSTKey(uint8_t ScanCode, bool bPress)
 {
+#if ENABLE_NETUSBEE
+	/* A USB keyboard on the NetUSBee takes the keys */
+	if (NetUSBee_Key(ScanCode, bPress))
+		return;
+#endif
+
 	/* If IKBD is monitoring only joysticks, don't report key */
 	if ( KeyboardProcessor.JoystickMode == AUTOMODE_JOYSTICK_MONITORING )
 		return;
